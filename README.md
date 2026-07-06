@@ -1,4 +1,6 @@
-# La Transparence et l'Obstacle -- A Comprehensive and Harmonised European Banking Authority (EBA) Stress Test and Transparency Exercise Dataset
+# La Transparence et l'Obstacle 
+
+# A Comprehensive and Harmonised European Banking Authority (EBA) Stress Test and Transparency Exercise Dataset
 
 This tool and the information presented herein are independent and are not affiliated with, endorsed by, or sponsored by the EBA. The EBA has not commissioned, requested, or otherwise supported the creation of this tool. All data sourced from the EBA is publicly available and used in accordance with their respective terms of use. The author of this tool is solely responsible for its content, any analysis, interpretations, or conclusions drawn, and is not liable for any use of the data or information provided. While efforts have been made to ensure accuracy, the author cannot guarantee the completeness, reliability, or timeliness of the information. The information provided is for general informational purposes only and does not constitute legal or professional advice. Any issues, errors, or discrepancies encountered in this document or resulting from its use are the sole responsibility of the author and do not reflect upon the EBA.
 

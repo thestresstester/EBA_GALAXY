@@ -35,4 +35,6 @@ In addition, five transversal datasets are also available, in which items are ma
 
 Matching items in these datasets went with some simplification. In particular, F-IRB and A-IRB portfolios, distinct in stress-test results, have been merged to match the Transparency Exercise, which only reports total IRB and Standardised exposures. In addition, the "Exposure in Default" Standardised exposure has been created in stress-testing data to match Transparency releases. All the necessary information is available in the Metadata file, including all dictionaries and matches across frameworks and with the EBA original nomenclature. 
 
-Ultimately, the Bank Distress Event Dataset lists major distress events of European banks from 2000 to end-2020, at a quarterly frequency. This dataset builds on the nomenclature presented in [Betz et al. (2014)](https://doi.org/10.1016/j.jbankfin.2013.11.041)
+Ultimately, the Bank Distress Event Dataset lists major distress events of European banks from 2000 to end-2020, at a quarterly frequency. This dataset builds on the nomenclature presented in [Betz et al. (2014)](https://doi.org/10.1016/j.jbankfin.2013.11.041).
+
+You can also find some monetary policy calendars and the Transparency Exercise dashboard, an example use of Stress-Testing and Transparency Exercise data within this repository.

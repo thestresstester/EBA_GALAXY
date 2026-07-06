@@ -1,0 +1,83 @@
+---
+title: "EBA Galaxy"
+author: "Quentin Bro de Comères"
+date: "July 2026"
+---
+
+<style>
+body {
+text-align: justify}
+.centered {
+text-align: center;
+}
+.bordered{
+border:2px solid #cc0000;
+border-style: solid;
+}
+</style>
+
+# DELIMITER - USER GUIDE
+
+<div class="centered">
+
+### DISCLAIMER
+
+</div>
+
+This tool and the information presented herein are independent and are not affiliated with, endorsed by, or sponsored by the EBA. The EBA has not commissioned, requested, or otherwise supported the creation of this tool. All data sourced from the EBA is publicly available and used in accordance with their respective terms of use. The author of this tool is solely responsible for its content, any analysis, interpretations, or conclusions drawn, and is not liable for any use of the data or information provided. While efforts have been made to ensure accuracy, the author cannot guarantee the completeness, reliability, or timeliness of the information. The information provided is for general informational purposes only and does not constitute legal or professional advice. Any issues, errors, or discrepancies encountered in this document or resulting from its use are the sole responsibility of the author and do not reflect upon the EBA.
+
+Feel free to reach me out in case you experience any issue or find any mistake. 
+
+x Quentin Bro de Comères
+
+<div class="centered">
+
+### THE FRAMEWORK
+
+</div>
+
+The aim of this tool is to provide a an easy access to the data the EBA discloses on European banks as part as its ["Transparency Exercise"](https://eba.europa.eu/eu-wide-transparency-exercise-0), ["EU-Wide Stress-Testing Exercises"](https://eba.europa.eu/risk-and-data-analysis/risk-analysis/eu-wide-stress-testing), and Risk Parameters within its ["Risk Dashboard"](https://eba.europa.eu/risk-and-data-analysis/risk-analysis/risk-monitoring/risk-dashboard) framework. 
+
+The Transparency Exercise was an annual exercise within which the EBA discloses balance-sheet information on banks linked to their solvency (capital adequacy), profitability, asset quality, and funding, with the aim to complement the Pillar 3 disclosures of banks. Since the Transparency Exercise has been discontinued in 2025, the dataset will not be updated after 2025 Q2. Data will still be available on the EBA ["Pillar 3 Data Hub"](https://edap-public.eba.europa.eu/Report/index/MTE1?rhversion=20260121164608-2) as part of the Pillar 3 disclosures of banks, although not for all items present in the Transparency Exercise. 
+
+The EU-Wide stress-testing exercises have been initiated and coordinated by the EBA (CEBS before 2011) every two years overall since 2009. These forward-looking solvency exercises aim at assessing the resilience of financial institutions to adverse macroeconomic developments. As such, they contribute to the assessment of systemic risk in the European financial system. They are performed on a bottom-up fashion on a sample of banks representing at least 70% of total banking assets in each considered country. Since 2010, they have been followed by extensive releases of information on banks (solvency, asset quality, profitability), both realised data and results under the baseline and adverse scenarios. Available exercises are the 2010, 2011, 2014, 2016, 2018, 2021, 2023, and 2025 ones. As part of the [Supervisory Review and Evaluation Process (SREP)](https://www.bankingsupervision.europa.eu/activities/srep/html/index.en.html), the ECB also performs its own [stress-testing exercises](https://www.bankingsupervision.europa.eu/activities/stresstests/html/index.en.html) on less significant institutions. These exercises are followed by a high-level disclosure of data, available in 2021, 2023, and 2025. 
+
+Eventually, the EBA Risk Dashboard is part of the regular risk assessment conducted by the EBA, which summarises the main risks and vulnerabilities in the banking sector in the EU. Within this dashboard, the Risk Parameters dataset presents the probabilities of default (PDs), loss rate and loss given default (LGDs) figures at the country level on a sample of financial institutions. These parameters are used to compute the risk weighted assets of banks. 
+
+Four datasets are created from these four disclosures. 
+* The Stress-Testing dataset (all stress-testing results since the 2010 one), available in the *Stress-Testing Exercises* tab;
+* The SSM Stress-Testing dataset (all SSM stress-testing results since the 2021 one), available in the *Stress-Testing Exercises* tab;
+* The Transparency Exercise dataset (all data points from the Transparency Exercise since the 2013 one), available in the *Transparency Exercise* tab;
+* The Risk Parameters dataset, featuring default rates, loss rates, PDs and LGDs at the country level, available in the *Thematic Datasets* tab. 
+All items are matched across exercises within each dataset. 
+
+In addition, five transversal datasets are also available, in which items are matched both across years and exercises, using the days where there is an overlap in the transparency disclosures and the realised data of a stress-testing exercise. Items are grouped by category. All these datasets are available in the *Thematic Datasets* tab.
+
+* The EBA PLC dataset gathers profits, losses and capital accounts from stress-testing results and transparency releases;
+* The EBA Market dataset gathers market risk parameters from transparency releases;
+* The EBA Exposures dataset gathers credit risk exposures from stress-testing results and transparency releases, with the exposures and countries where these exposures are generated;
+* The EBA Sovereign dataset gathers the sovereign exposures of banks, from the Transparency Exercise disclosures;
+* The EBA Sector exposure dataset, which gathers the exposure of banks to economic sectors, identified with their NACE codes.
+
+Matching items in these datasets went with some simplification. In particular, F-IRB and A-IRB portfolios, distinct in stress-test results, have been merged to match the Transparency Exercise, which only reports total IRB and Standardised exposures. In addition, the "Exposure in Default" Standardised exposure has been created in stress-testing data to match Transparency releases. All the necessary information is available in the Metadata file, including all dictionaries and matches across frameworks and with the EBA original nomenclature. 
+
+Ultimately, the Bank Distress Event Dataset lists major distress events of European banks from 2000 to end-2020, at a quarterly frequency. This dataset builds on the nomenclature presented in [Betz et al. (2014)](https://doi.org/10.1016/j.jbankfin.2013.11.041), and has been used for instance in [one of my papers](https://doi.org/10.1016/j.irfa.2025.104417).
+
+# DELIMITER - The Bank Distress Event Dataset
+
+Version:	1	
+Last Update: 	February 2020	
+		
+Author:	Quentin Bro de Comères	
+		
+This dataset lists major distress events of European banks from 2000 Q1 to 2020 Q4, at a quarterly frequency. A distress event is any event entering at least one of the following categories (mainly following [Betz et al. (2014)](https://doi.org/10.1016/j.jbankfin.2013.11.041)):
+- Actual bankruptcies (net worth of a bank falls below country-specific guidelines), liquidations (bank is sold as per the guidelines of the liquidator in which case the shareholders may not receive full payment for their ownership), defaults (obligation payment failure - bank has failed to pay interest or principal on at least one financial obligation beyond any grace period specified by the terms -, distressed exchange - at least one financial obligation is repurchased or replaced by other instruments with a diminished total value -, placed under administration or regulatory intervention, as per rating agencies categories). The event is defined to begin when the failure is announced and to end when it occurs.
+- State support captures recapitalisation and asset relief (asset protection or asset guarantees) programs. The event is defined to begin when the program is announced or adopted (almost always the same quarter)  and to end when it is implemented to the bank. When a bank benefits from more than one program or intervention within one year, the duration is extended to capture the period of actual distress. When the period is longer, the bank is counted more than one time - one for each event. When the enforcement of the program happens a long time after its announcement or adoption, another more relevant date is considered.
+- Private sector solutions are taken into account via mergers in distress (a parent receives state aid within 12 months after the merger or a merged entity has a coverage ratio below than 0 within 12 months before the merger) and IPO, purchase or liquidity providing (recapitalisation) by private investors. The event is defined to begin when the merger occurs and to end when the parent receives state aid, or to start when the coverage ratio falls below 0 (within 12 months before the merger) and end when the merger occurs.
+- Coverage ratio is computed following [González-Hermosillo (1999)](https://doi.org/10.5089/9781451845167.001) as (capital equity + loan reserve - nonperforming loans)/total assets.
+- A bank is counted once if more than one distress events happen within the same year, else more than one time. Only dates for listed banks have been updated accordingly. Thus, despite few exceptions, distress events are shorter than or equal to one year (4 quarters) for these banks. 
+
+Sources: S&P, Moody's and Fitch annual compendiums of corporate defaults, Eikon Refinitiv, Reuters, the Financial Times, Bloomberg, the European Commission, the Bank for International Settlements, the OECD, the World Bank, the European Central Bank and national Central Banks and resolution funds, the Yale Program on Financial Stability, law firms (e.g., MayerBrown) and academic papers, see worksheet "Sources" for more details.
+
+- Frank Betz, Silviu Oprică, Tuomas A. Peltonen, and Peter Sarlin. Predicting distress in European banks. Journal of Banking & Finance, 45 :225–241, 2014. DOI: [https://doi.org/10.1016/j.jbankfin.2013.11.041](https://doi.org/10.1016/j.jbankfin.2013.11.041)
+- Brenda González-Hermosillo. Determinants of ex-ante banking system distress: A macro-micro empirical exploration of some recent episodes. Working Paper No. 99/33, International Monetary Fund, New York, 1999. DOI: [https://doi.org/10.5089/9781451845167.001](https://doi.org/10.5089/9781451845167.001)

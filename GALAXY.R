@@ -1068,7 +1068,7 @@ server <- function(input, output, session) {
               class = 'custom-datatable',
               options = list(
                 pageLength = 200, 
-                scrollX = TRUE,
+                scrollX = TRUE #,
                 # columnDefs = list(
                 #   list(targets = 0, className = 'dt-sticky-col dt-sticky-col-1'),
                 #   list(targets = 1, className = 'dt-sticky-col dt-sticky-col-2')
@@ -1082,7 +1082,7 @@ server <- function(input, output, session) {
               class = 'custom-datatable',
               options = list(
                 pageLength = 200, 
-                scrollX = TRUE,
+                scrollX = TRUE #,
                 # columnDefs = list(
                 #   list(targets = 0, className = 'dt-sticky-col dt-sticky-col-1'),
                 #   list(targets = 1, className = 'dt-sticky-col dt-sticky-col-2')
@@ -1097,7 +1097,7 @@ server <- function(input, output, session) {
               class = 'custom-datatable',
               options = list(
                 pageLength = 200, 
-                scrollX = TRUE,
+                scrollX = TRUE #,
                 # columnDefs = list(
                 #   list(targets = 0, className = 'dt-sticky-col dt-sticky-col-1'),
                 #   list(targets = 1, className = 'dt-sticky-col dt-sticky-col-2')
@@ -1125,7 +1125,7 @@ server <- function(input, output, session) {
                 class = 'custom-datatable',
                 options = list(
                   pageLength = 200, 
-                  scrollX = TRUE,
+                  scrollX = TRUE #,
                   # columnDefs = list(
                   #   list(targets = 0, className = 'dt-sticky-col dt-sticky-col-1'),
                   #   list(targets = 1, className = 'dt-sticky-col dt-sticky-col-2')
@@ -1141,7 +1141,7 @@ server <- function(input, output, session) {
               class = 'custom-datatable',
               options = list(
                 pageLength = 200, 
-                scrollX = TRUE,
+                scrollX = TRUE #,
                 # columnDefs = list(
                 #   list(targets = 0, className = 'dt-data-sticky-col dt-data-sticky-col-1'),
                 #   list(targets = 1, className = 'dt-data-sticky-col dt-data-sticky-col-2'),
@@ -1161,7 +1161,7 @@ server <- function(input, output, session) {
               class = 'custom-datatable',
               options = list(
                 pageLength = 200, 
-                scrollX = TRUE,
+                scrollX = TRUE #,
                 # columnDefs = list(
                 #   list(targets = 0, className = 'dt-data-sticky-col dt-data-sticky-col-1'),
                 #   list(targets = 1, className = 'dt-data-sticky-col dt-data-sticky-col-2'),
@@ -1181,7 +1181,7 @@ server <- function(input, output, session) {
               class = 'custom-datatable',
               options = list(
                 pageLength = 200, 
-                scrollX = TRUE,
+                scrollX = TRUE #,
                 # columnDefs = list(
                 #   list(targets = 0, className = 'dt-data-sticky-col dt-data-sticky-col-1'),
                 #   list(targets = 1, className = 'dt-data-sticky-col dt-data-sticky-col-2'),
@@ -1226,7 +1226,7 @@ server <- function(input, output, session) {
                 class = 'custom-datatable',
                 options = list(
                   pageLength = 200, 
-                  scrollX = TRUE,
+                  scrollX = TRUE #,
                   # columnDefs = list(
                   #   list(targets = 0, className = 'dt-sticky-col dt-sticky-col-1'),
                   #   list(targets = 1, className = 'dt-sticky-col dt-sticky-col-2')

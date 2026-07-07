@@ -536,7 +536,7 @@ metabanks <- read_xlsx("Meta/Total_Metadata_App.xlsx", sheet = "Bank_ID") %>%
   mutate(Exercise = str_replace(Exercise, " A$", " Autumn")) %>% 
   arrange(Bank_ID, ISO2, Exercise) %>%
   rename(`EBA Name` = Name, Name = Name_Clean) %>%
-  mutate(Country = ifelse(ISO2 == "XX", "Other", countrycode(ISO2, origin = "iso2c", destination = "country.name"))) %>% 
+  mutate(Country = ifelse(ISO2 == "XX", "Other", countrycode(ISO2, origin = "iso2c", destination = "country.name", custom_match = c("XX" = "Other")))) %>% 
   dplyr::select(Name, `EBA Name`, ISO2, Country, Bank_ID, LEI, Exercise, Sample) %>%
   distinct() %>%
   mutate(Sample = str_replace(Sample, "1", "X")) %>%
@@ -577,7 +577,7 @@ footnotes = read_xlsx("Meta/Total_Metadata_App.xlsx", sheet = "Metadata", range 
 
 ## Other banks
 other_banks <- read_xlsx("Meta/Total_Metadata_App.xlsx", sheet = "Metadata", range = "U4:BF95") %>% ## Colnames...
-  mutate(Country = ifelse(ISO2 == "XX", "Other", countrycode(ISO2, origin = "iso2c", destination = "country.name"))) %>%
+  mutate(Country = ifelse(ISO2 == "XX", "Other", countrycode(ISO2, origin = "iso2c", destination = "country.name", custom_match = c("XX" = "Other")))) %>%
   mutate(across(matches("\\d{4}"), ~ str_replace(., "1", "X"))) %>%
   mutate(across(matches("\\d{4}"), ~ ifelse(is.na(.) | . == "NA", NA, .))) %>%
   dplyr::select(Name, ISO2, Country, Bank_ID, LEI, everything()) 

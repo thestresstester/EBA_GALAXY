@@ -1,26 +1,44 @@
-rm(list = ls())
-cat("\014")
-path <- dirname(rstudioapi::getSourceEditorContext()$path)
+# rm(list = ls())
+# cat("\014")
+# path <- dirname(rstudioapi::getSourceEditorContext()$path)
+# 
+# setwd(path)
+# getwd()
+# 
+# install_if_missing <- function(packages) {
+#   new_packages <- packages[!(packages %in% installed.packages()[, "Package"])]
+#   if (length(new_packages)) {
+#     install.packages(new_packages, dependencies = TRUE)
+#   }
+# }
 
-setwd(path)
-getwd()
+library(shiny)
+library(fst)
+library(shinyjs)
+library(shinybusy)
+library(DT)
+library(htmltools)
+library(tidyverse)
+library(readxl)
+library(Hmisc) 
+library(writexl)
+library(zip)
+library(countrycode)
+library(plotly)
+library(ggridges)
+library(visNetwork)
+library(zoo)
+library(lubridate)
 
-install_if_missing <- function(packages) {
-  new_packages <- packages[!(packages %in% installed.packages()[, "Package"])]
-  if (length(new_packages)) {
-    install.packages(new_packages, dependencies = TRUE)
-  }
-}
+# required_packages <- c(
+#   "shiny", "fst", "shinyjs", "shinybusy", "DT", "htmltools", 
+#   "tidyverse", "readxl", "Hmisc", "writexl", "zip", "countrycode",
+#   "plotly", "ggridges", "visNetwork", "zoo", "lubridate"
+# )
 
-required_packages <- c(
-  "shiny", "shinythemes", "fst", "shinyjs", "shinybusy", "DT", "htmltools", 
-  "tidyverse", "readxl", "Hmisc", "writexl", "zip", "countrycode",
-  "plotly", "ggridges", "visNetwork", "zoo", "lubridate"
-)
+# install_if_missing(required_packages)
 
-install_if_missing(required_packages)
-
-lapply(required_packages, library, character.only = TRUE)
+# lapply(required_packages, library, character.only = TRUE)
 
 source("Meta/Functions/Global.R")
 # source("Meta/Functions/Visualisation_Functions.R")
@@ -3095,7 +3113,7 @@ server <- function(input, output, session) {
   output$downloadTotalMetadata_overview <- downloadHandler(
     filename = "Total_Metadata_App.xlsx",
     content = function(file) {
-      file.copy("meta/Total_Metadata_App.xlsx", file, overwrite = TRUE)
+      file.copy("Meta/Total_Metadata_App.xlsx", file, overwrite = TRUE)
     }
   )
   
@@ -3241,7 +3259,7 @@ server <- function(input, output, session) {
   output$downloadTotalMetadata <- downloadHandler(
     filename = "Total_Metadata_App.xlsx",
     content = function(file) {
-      file.copy("meta/Total_Metadata_App.xlsx", file, overwrite = TRUE)
+      file.copy("Meta/Total_Metadata_App.xlsx", file, overwrite = TRUE)
     }
   )
   

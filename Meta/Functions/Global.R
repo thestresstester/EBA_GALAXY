@@ -731,7 +731,7 @@ exposures_names <- read_xlsx("Meta/Metadata_DB.xlsx", sheet = "Common_Exposure")
 labels <- read_xlsx("Meta/Metadata_DB.xlsx", sheet = "Labels")
 
 # Load data
-chart_db <- read.fst("Meta/Original Data/chart_db.fst")
+# chart_db <- read.fst("Meta/Original Data/chart_db.fst")
 
 # Helper function to convert YYYYMM to YYYY QX
 convert_to_quarter <- function(period) {

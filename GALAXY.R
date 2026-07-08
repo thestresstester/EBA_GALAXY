@@ -29,6 +29,7 @@ library(ggridges)
 library(visNetwork)
 library(zoo)
 library(lubridate)
+library(markdown)
 
 # required_packages <- c(
 #   "shiny", "fst", "shinyjs", "shinybusy", "DT", "htmltools", 
@@ -1045,6 +1046,39 @@ server <- function(input, output, session) {
   
   thematic_data_loaded <- reactiveVal(FALSE)
   thematic_data_visible <- reactiveVal(FALSE)
+  
+  chart_data_loaded <- reactiveVal(FALSE)
+  chart_db <- reactiveVal(NULL)
+  
+  observeEvent(input$`main-tabs`, {
+    if(input$`main-tabs` == "Visualisation" && !chart_data_loaded()) {
+      # Show loading indicator
+      showModal(modalDialog(
+        title = "Loading Visualisation Data",
+        "Please wait while we load the chart database...",
+        footer = NULL,
+        easyClose = FALSE
+      ))
+      
+      # Safely load the data with error handling
+      tryCatch({
+        loaded_chart_db <- read.fst("Meta/Original Data/chart_db.fst")
+        chart_db(loaded_chart_db)
+        chart_data_loaded(TRUE)
+        
+        # Remove loading indicator
+        removeModal()
+      }, error = function(e) {
+        removeModal()
+        showModal(modalDialog(
+          title = "Error Loading Data",
+          paste("Failed to load chart database:", e$message),
+          footer = modalButton("Close"),
+          easyClose = TRUE
+        ))
+      })
+    }
+  }, priority = 100)  # Higher priority to ensure it runs first
   
   
   output$st_data_loaded <- reactive(st_data_loaded())
@@ -3263,67 +3297,91 @@ server <- function(input, output, session) {
     }
   )
   
-  # Load all required datasets
+  # Load all required datasets - wrap these in reactive expressions
   available_items_ratios <- c("ITM_119", "ITM_120", "ITM_121", "ITM_130", "ITM_CETFL", 
                               "ITM_NII", "ITM_TFL", "ITM_TOTFL", "ITM_54", "ITM_67", 
                               "ITM_50", "ITM_46", "ITM_4")
   
-  tr_ratios <- chart_db %>% 
-    filter(DB == "tr_ratios") %>% 
-    dplyr::select(-DB) %>% 
-    select_if(function(x) !(all(is.na(x)) | all(x == ""))) %>% 
-    filter(Common_Item %in% available_items_ratios) %>%
-    left_join(labels, by = "Common_Item")
+  tr_ratios <- reactive({
+    req(chart_db())
+    chart_db() %>% 
+      filter(DB == "tr_ratios") %>% 
+      dplyr::select(-DB) %>% 
+      select_if(function(x) !(all(is.na(x)) | all(x == ""))) %>% 
+      filter(Common_Item %in% available_items_ratios) %>%
+      left_join(labels, by = "Common_Item")
+  })
   
-  final_waterfall <- chart_db %>% 
-    filter(DB == "final_waterfall") %>% 
-    dplyr::select(-DB) %>% 
-    select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  final_waterfall <- reactive({
+    req(chart_db())
+    chart_db() %>% 
+      filter(DB == "final_waterfall") %>% 
+      dplyr::select(-DB) %>% 
+      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  })
   
-  bank_exp_total <- chart_db %>% 
-    filter(DB == "bank_exp_total") %>% 
-    dplyr::select(-DB) %>% 
-    select_if(function(x) !(all(is.na(x)) | all(x == ""))) %>%
-    distinct() %>%
-    pivot_wider(names_from = Framework, values_from = Amount) %>%
-    arrange(Bank_ID, ISO2, Period, Country, Common_Exposure) %>%
-    mutate(Amount = coalesce(TR, ST), Framework = "TR") %>%
-    dplyr::select(-TR, -ST) %>%
-    distinct() %>%
-    filter(Country != 0) %>%
-    group_by(TP, ISO2, Bank_ID, Period, Exercise, Portfolio, Common_Exposure, Country) %>%
-    mutate(Amount = sum(Amount, na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(Common_Item = "ITM_SECEXP") %>%
-    distinct() %>%
-    mutate(Country = factor(Country, as.vector(na.omit(metadata_countries$Label_Country_Final)), 
-                            as.vector(na.omit(metadata_countries$Value_Country_Final)))) %>%
-    dplyr::select(ISO2, Bank_ID, Name, Period, Country, Common_Exposure, Portfolio, Amount) %>%
-    distinct()
+  bank_exp_total <- reactive({
+    req(chart_db())
+    chart_db() %>% 
+      filter(DB == "bank_exp_total") %>% 
+      dplyr::select(-DB) %>% 
+      select_if(function(x) !(all(is.na(x)) | all(x == ""))) %>%
+      distinct() %>%
+      pivot_wider(names_from = Framework, values_from = Amount) %>%
+      arrange(Bank_ID, ISO2, Period, Country, Common_Exposure) %>%
+      mutate(Amount = coalesce(TR, ST), Framework = "TR") %>%
+      dplyr::select(-TR, -ST) %>%
+      distinct() %>%
+      filter(Country != 0) %>%
+      group_by(TP, ISO2, Bank_ID, Period, Exercise, Portfolio, Common_Exposure, Country) %>%
+      mutate(Amount = sum(Amount, na.rm = TRUE)) %>%
+      ungroup() %>%
+      mutate(Common_Item = "ITM_SECEXP") %>%
+      distinct() %>%
+      mutate(Country = factor(Country, as.vector(na.omit(metadata_countries$Label_Country_Final)), 
+                              as.vector(na.omit(metadata_countries$Value_Country_Final)))) %>%
+      dplyr::select(ISO2, Bank_ID, Name, Period, Country, Common_Exposure, Portfolio, Amount) %>%
+      distinct()
+  })
   
-  sov_exp <- chart_db %>% 
-    filter(DB == "sov_exp") %>% 
-    dplyr::select(-DB) %>% 
-    select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  sov_exp <- reactive({
+    req(chart_db())
+    chart_db() %>% 
+      filter(DB == "sov_exp") %>% 
+      dplyr::select(-DB) %>% 
+      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  })
   
-  bank_nace <- chart_db %>% 
-    filter(DB == "bank_nace") %>% 
-    dplyr::select(-DB) %>% 
-    select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  bank_nace <- reactive({
+    req(chart_db())
+    chart_db() %>% 
+      filter(DB == "bank_nace") %>% 
+      dplyr::select(-DB) %>% 
+      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  })
   
-  tr_rwas <- chart_db %>% 
-    filter(DB == "tr_rwas") %>% 
-    dplyr::select(-DB) %>% 
-    select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  tr_rwas <- reactive({
+    req(chart_db())
+    chart_db() %>% 
+      filter(DB == "tr_rwas") %>% 
+      dplyr::select(-DB) %>% 
+      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  })
   
-  tr_assets <- chart_db %>% 
-    filter(DB == "tr_assets") %>% 
-    dplyr::select(-DB) %>% 
-    select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  tr_assets <- reactive({
+    req(chart_db())
+    chart_db() %>% 
+      filter(DB == "tr_assets") %>% 
+      dplyr::select(-DB) %>% 
+      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  })
   
   # ============ TAB 1: TIME SERIES ============
   observe({
-    item_labels <- tr_ratios %>%
+    
+    req(tr_ratios())
+    
+    item_labels <- tr_ratios() %>%
       distinct(Label) %>%
       arrange(Label) %>%
       pull(Label)
@@ -3334,8 +3392,9 @@ server <- function(input, output, session) {
   })
   
   observe({
+    req(tr_ratios())
     # Get countries with actual data (that have at least some scenario data)
-    countries_with_data <- tr_ratios %>%
+    countries_with_data <- tr_ratios() %>%
       filter(!is.na(Amount)) %>%
       group_by(Country) %>%
       # Check if country has data for at least some scenarios
@@ -3351,13 +3410,14 @@ server <- function(input, output, session) {
   })
   
   observe({
+    req(tr_ratios())
     req(input$vis_ts_country, input$vis_ts_item)
     
     lbls <- labels %>% filter(Label == input$vis_ts_item)
     
     # Get banks that have data for at least one scenario for this item and country
     # This prevents the error when trying to access non-existent Baseline/Adverse columns
-    banks_with_data <- tr_ratios %>%
+    banks_with_data <- tr_ratios() %>%
       filter(
         Country == input$vis_ts_country, 
         Common_Item == lbls$Common_Item,
@@ -3387,9 +3447,9 @@ server <- function(input, output, session) {
   
   ts_filtered_data <- reactive({
     req(input$vis_ts_item, input$vis_ts_country)
-    
+    req(tr_ratios())
     lbls <- labels %>% filter(Label == input$vis_ts_item)
-    data <- tr_ratios %>%
+    data <- tr_ratios() %>%
       filter(Label == input$vis_ts_item) %>%
       filter(Country == input$vis_ts_country)
     
@@ -3540,7 +3600,8 @@ server <- function(input, output, session) {
   
   # ============ TAB 2: DENSITY ============
   observe({
-    item_labels <- tr_ratios %>%
+    req(tr_ratios())
+    item_labels <- tr_ratios() %>%
       distinct(Label) %>%
       arrange(Label) %>%
       pull(Label)
@@ -3555,10 +3616,10 @@ server <- function(input, output, session) {
   
   dens_filtered_data <- reactive({
     req(input$vis_dens_item, input$vis_dens_period)
-    
+    req(tr_ratios())
     lbls <- labels %>% filter(Label == input$vis_dens_item)
     
-    data <- tr_ratios %>%
+    data <- tr_ratios() %>%
       filter(Common_Item == lbls$Common_Item) %>%
       filter(!is.na(Bank_ID)) %>%
       filter(Framework == "ST")
@@ -3657,7 +3718,8 @@ server <- function(input, output, session) {
   
   # ============ TAB 3: WATERFALL ============
   observe({
-    exercises <- final_waterfall %>%
+    req(final_waterfall())
+    exercises <- final_waterfall() %>%
       distinct(Exercise) %>%
       arrange(desc(Exercise)) %>%
       pull(Exercise)
@@ -3687,8 +3749,9 @@ server <- function(input, output, session) {
   
   observe({
     req(input$vis_wf_exercise)
+    req(final_waterfall())
     
-    countries <- final_waterfall %>%
+    countries <- final_waterfall() %>%
       filter(Exercise == input$vis_wf_exercise) %>%
       filter(Country != "Total") %>%
       distinct(Country) %>%
@@ -3701,6 +3764,7 @@ server <- function(input, output, session) {
   })
   
   observe({
+    req(final_waterfall())
     req(input$vis_wf_exercise, input$vis_wf_country)
     
     if(input$vis_wf_country == "ALL") {
@@ -3708,7 +3772,7 @@ server <- function(input, output, session) {
                         choices = c("All Banks" = "ALL"),
                         selected = "ALL")
     } else {
-      banks_in_country <- final_waterfall %>%
+      banks_in_country <- final_waterfall() %>%
         filter(Exercise == input$vis_wf_exercise, Country == input$vis_wf_country) %>%
         filter(!is.na(Name), Name != "Total") %>%
         distinct(Name) %>%
@@ -3723,9 +3787,10 @@ server <- function(input, output, session) {
   
   wf_filtered_data <- reactive({
     req(input$vis_wf_exercise, input$vis_wf_period, input$vis_wf_scenario, input$vis_wf_country, input$vis_wf_bank)
+    req(final_waterfall())
     
     transitional <- as.numeric(input$vis_wf_transitional)
-    data <- final_waterfall
+    data <- final_waterfall()
     fact <- 1
     
     # Define dimensions based on transitional setting
@@ -3957,17 +4022,23 @@ server <- function(input, output, session) {
   
   # ============ TAB 4: NETWORK ============
   
-  observe({   countries <- bank_exp_total %>%   
+  observe({   
+    req(bank_exp_total())
+    
+    countries <- bank_exp_total() %>%   
     distinct(ISO2) %>%    
     arrange(ISO2) %>%
     pull(ISO2)  
-  updateSelectInput(session, "vis_net_country",                    
+  
+    updateSelectInput(session, "vis_net_country",                    
                     choices = c("All Countries" = "ALL", countries), 
                     selected = "ALL") })
   observe({
     req(input$vis_net_country)  
+    req(bank_exp_total())
+    
     if(input$vis_net_country != "ALL") {   
-      banks <- bank_exp_total %>%     
+      banks <- bank_exp_total() %>%     
         filter(ISO2 == input$vis_net_country) %>%
         distinct(Name) %>%  
         arrange(Name) %>%  
@@ -3981,11 +4052,12 @@ server <- function(input, output, session) {
   }) 
   
   observe({
-    
+    req(bank_exp_total())
     req(input$vis_net_exp_type)
+
     
     if(input$vis_net_exp_type == "risk") {
-      exposure_choices <- bank_exp_total %>%
+      exposure_choices <- bank_exp_total() %>%
         distinct(Common_Exposure) %>%
         left_join(exposures_names %>% select(Common_Exposure, Exposure_Label), 
                   by = "Common_Exposure") %>%
@@ -4002,14 +4074,16 @@ server <- function(input, output, session) {
   
   observe({
     req(input$vis_net_exp_type)
+    req(bank_exp_total())
+    req(sov_exp())
     
     if(input$vis_net_exp_type == "risk") {
-      periods <- bank_exp_total %>%
+      periods <- bank_exp_total() %>%
         distinct(Period) %>%
         arrange(desc(Period)) %>%
         pull(Period)
     } else {
-      periods <- sov_exp %>%
+      periods <- sov_exp() %>%
         distinct(Period) %>%
         arrange(desc(Period)) %>%
         pull(Period)
@@ -4025,10 +4099,11 @@ server <- function(input, output, session) {
   net_filtered_data <- reactive({
     req(input$vis_net_period, input$vis_net_exp_type)
     
+    
     if(input$vis_net_exp_type == "risk") {
       req(input$vis_net_portfolio, input$vis_net_exposure)
       
-      data <- bank_exp_total %>%
+      data <- bank_exp_total() %>%
         filter(Common_Exposure == input$vis_net_exposure)
       
       if(input$vis_net_bank != "ALL") {
@@ -4042,7 +4117,7 @@ server <- function(input, output, session) {
           mutate(Portfolio = 0) %>%
           group_by(ISO2, Bank_ID, Period, Portfolio, Common_Exposure, Country) %>%
           summarise(Amount = sum(Amount, na.rm = TRUE), .groups = "drop") %>%
-          left_join(bank_exp_total %>% distinct(ISO2, Bank_ID, Name), by = c("ISO2", "Bank_ID"))
+          left_join(bank_exp_total() %>% distinct(ISO2, Bank_ID, Name), by = c("ISO2", "Bank_ID"))
       } else if(input$vis_net_portfolio == "IRB") {
         data <- data %>% filter(Portfolio == 2)
       } else {
@@ -4060,8 +4135,9 @@ server <- function(input, output, session) {
       
     } else {
       req(input$vis_net_maturity)
+      req(sov_exp())
       
-      data <- sov_exp %>%
+      data <- sov_exp() %>%
         filter(Maturity == as.numeric(input$vis_net_maturity))
       
       if(input$vis_net_bank != "ALL") {
@@ -4159,7 +4235,7 @@ server <- function(input, output, session) {
       caption <- "Size of dots relates to the share of exposures in the sample. Pre-2016: Net Direct Long Exposures. 2016-2018: Financial Assets. 2019-: Direct Exposures on Balance Sheet."
     }
     
-    visNetwork(nodes, edges, main = title, submain = paste0("\n", caption)) %>%
+    visNetwork(nodes, edges, main = title, submain = list(text = paste0("\n", caption), style = "margin-top: 0px; margin-bottom: 5px; padding: 0px;")) %>%
       visNodes(size = "value", title = "title") %>%
       visEdges(
         smooth = list(enabled = TRUE, type = "continuous"),
@@ -4191,7 +4267,9 @@ server <- function(input, output, session) {
   
   # ============ TAB 5: NACE ============
   observe({
-    countries <- bank_nace %>%
+    req(bank_nace())
+    
+    countries <- bank_nace() %>%
       distinct(ISO2) %>%
       arrange(ISO2) %>%
       pull(ISO2)
@@ -4202,10 +4280,11 @@ server <- function(input, output, session) {
   })
   
   observe({
+    req(bank_nace())
     req(input$vis_nace_country)
     
     if(input$vis_nace_country != "ALL") {
-      banks <- bank_nace %>%
+      banks <- bank_nace() %>%
         filter(ISO2 == input$vis_nace_country) %>%
         distinct(Name) %>%
         arrange(Name) %>%
@@ -4222,26 +4301,27 @@ server <- function(input, output, session) {
   })
   
   observe({
+    req(bank_nace())
     req(input$vis_nace_country, input$vis_nace_bank)
     
     periods <- NULL
     
     if(input$vis_nace_bank != "ALL") {
-      periods <- bank_nace %>%
+      periods <- bank_nace() %>%
         filter(Name == input$vis_nace_bank) %>%
         filter(if_any(starts_with("NACE_"), ~ !is.na(.) & . != 0)) %>%
         distinct(Period) %>%
         arrange(desc(Period)) %>%
         pull(Period)
     } else if(input$vis_nace_country != "ALL") {
-      periods <- bank_nace %>%
+      periods <- bank_nace() %>%
         filter(ISO2 == input$vis_nace_country) %>%
         filter(if_any(starts_with("NACE_"), ~ !is.na(.) & . != 0)) %>%
         distinct(Period) %>%
         arrange(desc(Period)) %>%
         pull(Period)
     } else {
-      periods <- bank_nace %>%
+      periods <- bank_nace() %>%
         filter(if_any(starts_with("NACE_"), ~ !is.na(.) & . != 0)) %>%
         distinct(Period) %>%
         arrange(desc(Period)) %>%
@@ -4266,8 +4346,9 @@ server <- function(input, output, session) {
   
   nace_filtered_data <- reactive({
     req(input$vis_nace_period)
+    req(bank_nace())
     
-    data <- bank_nace
+    data <- bank_nace()
     
     if(input$vis_nace_bank != "ALL") {
       chart_nace <- data %>% filter(Name == input$vis_nace_bank)
@@ -4392,7 +4473,9 @@ server <- function(input, output, session) {
   
   # ============ TAB 6: BALANCE SHEET ============
   observe({
-    countries <- tr_assets %>%
+    req(tr_assets())
+    
+    countries <- tr_assets() %>%
       distinct(Country) %>%
       arrange(Country) %>%
       pull(Country)
@@ -4403,10 +4486,12 @@ server <- function(input, output, session) {
   })
   
   observe({
+    req(tr_assets())
+    
     req(input$vis_bs_country)
     
     if(input$vis_bs_country != "ALL") {
-      banks <- tr_assets %>%
+      banks <- tr_assets() %>%
         filter(Country == input$vis_bs_country) %>%
         distinct(Name) %>%
         arrange(Name) %>%
@@ -4423,8 +4508,13 @@ server <- function(input, output, session) {
   })
   
   bs_filtered_data <- reactive({
-    rwas_data <- tr_rwas
-    assets_data <- tr_assets
+    
+    req(tr_rwas())
+    req(tr_assets())
+    
+    
+    rwas_data <- tr_rwas()
+    assets_data <- tr_assets()
     
     if(input$vis_bs_bank != "ALL") {
       rwas_data <- rwas_data %>% filter(Name == input$vis_bs_bank)

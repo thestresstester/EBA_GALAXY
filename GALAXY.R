@@ -1,19 +1,14 @@
 rm(list = ls())
 cat("\014")
-path <- dirname(rstudioapi::getSourceEditorContext()$path)
-
-setwd(path)
-getwd()
-
-install_if_missing <- function(packages) {
-  new_packages <- packages[!(packages %in% installed.packages()[, "Package"])]
-  if (length(new_packages)) {
-    install.packages(new_packages, dependencies = TRUE)
+if (requireNamespace("rstudioapi", quietly = TRUE) && rstudioapi::isAvailable()) {
+  editor_path <- tryCatch(rstudioapi::getSourceEditorContext()$path, error = function(...) "")
+  if (nzchar(editor_path)) {
+    setwd(dirname(editor_path))
   }
 }
 
 library(shiny)
-# library(fst)
+library(fst)
 library(shinyjs)
 library(shinybusy)
 library(DT)
@@ -33,19 +28,31 @@ library(markdown)
 library(duckdb)
 library(arrow)
 
-
-# required_packages <- c(
-#   "shiny", "fst", "shinyjs", "shinybusy", "DT", "htmltools", 
-#   "tidyverse", "readxl", "Hmisc", "writexl", "zip", "countrycode",
-#   "plotly", "ggridges", "visNetwork", "zoo", "lubridate"
-# )
-
-# install_if_missing(required_packages)
-
-# lapply(required_packages, library, character.only = TRUE)
-
 source("Meta/Functions/Global.R")
-# source("Meta/Functions/Visualisation_Functions.R")
+
+addResourcePath(
+  "downloads",
+  normalizePath("Meta/Original Data", winslash = "/", mustWork = TRUE)
+)
+
+encode_download_path <- function(path) {
+  path_segments <- strsplit(path, "/", fixed = TRUE)[[1]]
+  encoded_segments <- vapply(path_segments, utils::URLencode, character(1), reserved = TRUE)
+  paste(encoded_segments, collapse = "/")
+}
+
+build_static_download_href <- function(path) {
+  paste0("downloads/", encode_download_path(path))
+}
+
+static_download_button <- function(path, download_name) {
+  tags$a(
+    href = build_static_download_href(path),
+    download = download_name,
+    class = "btn btn-default circle-button",
+    ""
+  )
+}
 
 ui <- fluidPage(
   
@@ -118,7 +125,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadSTdata", "", class = "circle-button")
+                                                      static_download_button("Total_Stress_Tests.parquet", "EU-Wide-Stress-Tests-Dataset.parquet")
                                                         )
                                                  ),
                                                  column(2,
@@ -153,7 +160,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadSSMdata", "", class = "circle-button")
+                                                      static_download_button("Total_SSM.parquet", "SSM-Stress-Tests-Dataset.parquet")
                                                         )
                                                  ),
                                                  column(2,
@@ -265,7 +272,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadTRdata", "", class = "circle-button")
+                                                      static_download_button("Total_Transparency.parquet", "Transparency-Exercise-Dataset.parquet")
                                                         )
                                                  ),
                                                  column(2,
@@ -382,7 +389,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadPLCdata", "", class = "circle-button")
+                                                      static_download_button("Merged Datasets/EBA_PLC.parquet", "Profit-Losses-Capital-Dataset.parquet")
                                                         )
                                                  ),
                                                  column(2,
@@ -409,7 +416,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadEXPData", "", class = "circle-button")
+                                                      static_download_button("Merged Datasets/EBA_Exposure.parquet", "Sector-Exposure-Dataset.parquet")
                                                         )
                                                  ),
                                                  column(2,
@@ -440,7 +447,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadSOVData", "", class = "circle-button")
+                                                      static_download_button("Merged Datasets/EBA_Sovereign.parquet", "Sovereign-Exposure-Dataset.parquet")
                                                         )
                                                  ),
                                                  column(2,
@@ -474,7 +481,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadMKTData", "", class = "circle-button")
+                                                      static_download_button("Merged Datasets/EBA_Market.parquet", "Market-Risk-Dataset.parquet")
                                                         )
                                                  ),
                                                  column(2,
@@ -504,7 +511,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadRPSData", "", class = "circle-button")
+                                                      static_download_button("EBA_Risk_Parameters.parquet", "Risk-Parameters-Dataset.parquet")
                                                         )
                                                  ),
                                                  column(2,
@@ -531,7 +538,7 @@ ui <- fluidPage(
                                                  column(2,
                                                         div(class = "button-container",
                                                             p("Download"),
-                                                            downloadButton("downloadBDSData", "", class = "circle-button")
+                                                      static_download_button("Banking Distress Database.xlsx", "Bank-Distress-Dataset.xlsx")
                                                         )
                                                  ),
                                                  column(2,
@@ -1023,6 +1030,160 @@ server <- function(input, output, session) {
     numeric_parts <- as.numeric(stringr::str_extract(items, "\\d+"))
     items[order(numeric_parts)]
   }
+
+  has_all_selection <- function(selected_values, all_label) {
+    is.null(selected_values) || length(selected_values) == 0 || all_label %in% selected_values
+  }
+
+  make_cast_in_clause <- function(column_name, selected_values) {
+    if (is.null(selected_values) || length(selected_values) == 0) {
+      return(character(0))
+    }
+
+    paste0("CAST(", column_name, " AS VARCHAR) IN (", quote_sql_values(selected_values), ")")
+  }
+
+  make_total_clause <- function(column_name) {
+    paste0(
+      "(",
+      column_name,
+      " IS NULL OR lower(trim(CAST(",
+      column_name,
+      " AS VARCHAR))) IN ('0', 'total', 'no breakdown', 'total / no breakdown')",
+      ")"
+    )
+  }
+
+  make_dynamic_filter_clauses <- function(filter_names, input_values) {
+    clauses <- character()
+
+    for (col_name in filter_names) {
+      input_val <- input_values[[paste0("dynamic_", col_name)]]
+      if (is.null(input_val) || "All" %in% input_val) {
+        next
+      }
+
+      if (col_name == "Scenario") {
+        scenario_mapping <- mappings[["Scenario"]]
+        selected_scenarios <- as.character(setdiff(input_val, "0"))
+        always_include <- as.character(
+          scenario_mapping[names(scenario_mapping) %in% c("Actual", "Actual Restated", "Actual restated")]
+        )
+        all_codes <- unique(c(selected_scenarios, always_include))
+
+        adverse_code <- as.character(scenario_mapping[names(scenario_mapping) == "Adverse"])
+        if (length(adverse_code) == 1 && adverse_code %in% selected_scenarios) {
+          adverse_shock_code <- as.character(scenario_mapping[names(scenario_mapping) == "Adverse Sovereign Shock"])
+          all_codes <- unique(c(all_codes, adverse_shock_code))
+        }
+
+        scenario_clause <- make_cast_in_clause(col_name, all_codes)
+        if ("0" %in% input_val) {
+          clauses <- c(clauses, paste0("(", scenario_clause, " OR ", make_total_clause(col_name), ")"))
+        } else {
+          clauses <- c(clauses, scenario_clause)
+        }
+
+        next
+      }
+
+      selected_values <- as.character(setdiff(input_val, "0"))
+      value_clause <- if (length(selected_values) > 0) make_cast_in_clause(col_name, selected_values) else character(0)
+
+      if ("0" %in% input_val) {
+        total_clause <- make_total_clause(col_name)
+        if (length(value_clause) > 0) {
+          clauses <- c(clauses, paste0("(", value_clause, " OR ", total_clause, ")"))
+        } else {
+          clauses <- c(clauses, total_clause)
+        }
+      } else if (length(value_clause) > 0) {
+        clauses <- c(clauses, value_clause)
+      }
+    }
+
+    clauses
+  }
+
+  build_standard_where_clauses <- function(country_input, bank_input, exercise_input, item_input, filter_names, input_values) {
+    where_clauses <- character()
+
+    if (!has_all_selection(country_input, "All Countries")) {
+      where_clauses <- c(where_clauses, make_cast_in_clause("ISO2", country_input))
+    }
+    if (!has_all_selection(bank_input, "All Banks")) {
+      where_clauses <- c(where_clauses, make_cast_in_clause("Bank_ID", bank_input))
+    }
+    if (!has_all_selection(exercise_input, "All Exercises")) {
+      where_clauses <- c(where_clauses, make_cast_in_clause("Exercise", exercise_input))
+    }
+    if (!has_all_selection(item_input, "All Items")) {
+      where_clauses <- c(where_clauses, make_cast_in_clause("Common_Item", item_input))
+    }
+
+    c(where_clauses, make_dynamic_filter_clauses(filter_names, input_values))
+  }
+
+  build_rps_where_clauses <- function(country_input, period_input, exposure_input, item_input) {
+    where_clauses <- character()
+
+    if (!has_all_selection(country_input, "All Countries")) {
+      where_clauses <- c(where_clauses, make_cast_in_clause("Country_Label", country_input))
+    }
+
+    if (!has_all_selection(period_input, "All Periods")) {
+      selected_periods <- vapply(period_input, function(formatted_date) {
+        format(zoo::as.yearmon(formatted_date, format = "%B %Y"), "%Y%m")
+      }, character(1))
+      where_clauses <- c(where_clauses, make_cast_in_clause("Period", selected_periods))
+    }
+
+    if (!has_all_selection(exposure_input, "All Exposures")) {
+      where_clauses <- c(where_clauses, make_cast_in_clause("Exposure_Label", exposure_input))
+    }
+
+    if (!has_all_selection(item_input, "All Items")) {
+      where_clauses <- c(where_clauses, make_cast_in_clause("Common_Item", item_input))
+    }
+
+    where_clauses
+  }
+
+  fetch_preview_result <- function(view_name, where_clauses = character()) {
+    total_rows <- count_dataset_rows(view_name, where_clauses)
+    rows_to_fetch <- if (total_rows > 0) min(preview_row_limit, total_rows) else 0L
+
+    list(
+      data = fetch_dataset_rows(view_name, where_clauses, rows_to_fetch),
+      total_rows = total_rows,
+      limited = total_rows > preview_row_limit
+    )
+  }
+
+  show_preview_notice <- function(notification_id, total_rows) {
+    showNotification(
+      paste0(
+        "Showing the first ",
+        format(preview_row_limit, big.mark = ","),
+        " rows out of ",
+        format(total_rows, big.mark = ","),
+        ". Use the filtered download to export the full result."
+      ),
+      type = "message",
+      duration = 8,
+      id = notification_id
+    )
+  }
+
+  export_query_result <- function(view_name, where_clauses, file_path, row_count) {
+    export_format <- if (row_count >= 500000) "parquet" else "csv"
+    copy_dataset_export(view_name, file_path, where_clauses, export_format)
+    export_format
+  }
+
+  get_export_extension <- function(view_name, where_clauses) {
+    if (count_dataset_rows(view_name, where_clauses) >= 500000) ".parquet" else ".csv"
+  }
   
   st_data_visible <- reactiveVal(FALSE)
   tr_data_visible = reactiveVal(FALSE)
@@ -1052,36 +1213,6 @@ server <- function(input, output, session) {
   
   chart_data_loaded <- reactiveVal(FALSE)
   chart_db <- reactiveVal(NULL)
-  
-  # observeEvent(input$`main-tabs`, {
-  #   if(input$`main-tabs` == "Visualisation" && !chart_data_loaded()) {
-  #     # Show loading indicator
-  #     showModal(modalDialog(
-  #       title = "Loading Visualisation Data",
-  #       "Please wait while we load the chart database...",
-  #       footer = NULL,
-  #       easyClose = FALSE
-  #     ))
-  #     
-  #     # Safely load the data with error handling
-  #     tryCatch({
-  #       loaded_chart_db <- read.fst("Meta/Original Data/chart_db.fst")
-  #       chart_db(loaded_chart_db)
-  #       chart_data_loaded(TRUE)
-  #       
-  #       # Remove loading indicator
-  #       removeModal()
-  #     }, error = function(e) {
-  #       removeModal()
-  #       showModal(modalDialog(
-  #         title = "Error Loading Data",
-  #         paste("Failed to load chart database:", e$message),
-  #         footer = modalButton("Close"),
-  #         easyClose = TRUE
-  #       ))
-  #     })
-  #   }
-  # }, priority = 100)  # Higher priority to ensure it runs first
   
   
   output$st_data_loaded <- reactive(st_data_loaded())
@@ -1161,35 +1292,6 @@ server <- function(input, output, session) {
               rownames = FALSE)
   })
   
-  # Update the TH item table
-  output$th_itemtable_dt <- renderDT({
-    req(active_th_dataset_type())
-    req(active_th_dataset_type() != "BDS")
-    
-    tbl <- switch(active_th_dataset_type(), 
-                  "SOV" = itm_table_sov,
-                  "EXP" = itm_table_exp,
-                  "PLC" = itm_table_plc, 
-                  "MKT" = itm_table_mkt,
-                  "RPS" = itm_table_total %>% filter(DB == "RPS"),
-                  NULL
-    )
-    
-    if (!is.null(tbl)) {
-      datatable(tbl,
-                class = 'custom-datatable',
-                options = list(
-                  pageLength = 200, 
-                  scrollX = TRUE #,
-                  # columnDefs = list(
-                  #   list(targets = 0, className = 'dt-sticky-col dt-sticky-col-1'),
-                  #   list(targets = 1, className = 'dt-sticky-col dt-sticky-col-2')
-                  # )
-                ),
-                rownames = FALSE)
-    }
-  })
-  
   output$ST_datatable <- renderDT({
     req(display_st_data())
     datatable(display_st_data(),
@@ -1211,8 +1313,8 @@ server <- function(input, output, session) {
   })
   
   output$TR_datatable <- renderDT({
-    req(tr_data())
-    datatable(tr_data(),
+    req(display_tr_data())
+    datatable(display_tr_data(),
               class = 'custom-datatable',
               options = list(
                 pageLength = 200, 
@@ -1298,15 +1400,18 @@ server <- function(input, output, session) {
     output$dynamic_st_filters <- renderUI({ NULL })
     shinyjs::show("loading_gif_st")
     
-    # Load data
-    loaded_data <- load_st_data()
-    st_data(loaded_data)
-    display_st_data(loaded_data)
+    preview_result <- fetch_preview_result(get_dataset_source("ST")$view)
+    st_data(preview_result$data)
+    display_st_data(preview_result$data)
     
     shinyjs::hide("loading_gif_st")
     st_data_visible(TRUE)
     st_data_loaded(TRUE)
     active_st_dataset_type("ST") # Set dataset type
+
+    if (preview_result$limited) {
+      show_preview_notice("st-preview-notice", preview_result$total_rows)
+    }
     
     # Update filters with pre-defined objects
     updateSelectizeInput(session, "country_filter_st",
@@ -1345,15 +1450,18 @@ server <- function(input, output, session) {
     output$dynamic_st_filters <- renderUI({ NULL })
     shinyjs::show("loading_gif_st")
     
-    # Load data
-    loaded_data <- load_ssm_data()
-    st_data(loaded_data)
-    display_st_data(loaded_data)
+    preview_result <- fetch_preview_result(get_dataset_source("SSM")$view)
+    st_data(preview_result$data)
+    display_st_data(preview_result$data)
     
     shinyjs::hide("loading_gif_st")
     st_data_visible(TRUE)
     st_data_loaded(TRUE)
     active_st_dataset_type("SSM") # Set dataset type
+
+    if (preview_result$limited) {
+      show_preview_notice("ssm-preview-notice", preview_result$total_rows)
+    }
     
     # Update filters with pre-defined objects
     updateSelectizeInput(session, "country_filter_st",
@@ -1389,15 +1497,18 @@ server <- function(input, output, session) {
     output$dynamic_tr_filters <- renderUI({ NULL })
     shinyjs::show("loading_gif_tr")
     
-    # Load data
-    loaded_data <- load_tr_data()
-    tr_data(loaded_data)
-    display_tr_data(loaded_data)
+    preview_result <- fetch_preview_result(get_dataset_source("TR")$view)
+    tr_data(preview_result$data)
+    display_tr_data(preview_result$data)
     
     shinyjs::hide("loading_gif_tr")
     tr_data_visible(TRUE)
     tr_data_loaded(TRUE)
     active_tr_dataset_type("TR") # Set dataset type to TR
+
+    if (preview_result$limited) {
+      show_preview_notice("tr-preview-notice", preview_result$total_rows)
+    }
     
     # Update filters with pre-defined objects (using TR specific ones)
     updateSelectizeInput(session, "country_filter_tr",
@@ -1439,14 +1550,18 @@ server <- function(input, output, session) {
     output$dynamic_th_filters <- renderUI({ NULL })
     shinyjs::show("loading_gif_th")
     
-    loaded_data <- load_eba_plc_data()
-    th_data(loaded_data)
-    display_th_data(loaded_data)
+    preview_result <- fetch_preview_result(get_dataset_source("PLC")$view)
+    th_data(preview_result$data)
+    display_th_data(preview_result$data)
     
     shinyjs::hide("loading_gif_th")
     thematic_data_visible(TRUE)
     thematic_data_loaded(TRUE)
     active_th_dataset_type("PLC")
+
+    if (preview_result$limited) {
+      show_preview_notice("plc-preview-notice", preview_result$total_rows)
+    }
     
     # Populate filters immediately after setting dataset type
     updateSelectizeInput(session, "country_filter_th_standard",
@@ -1485,14 +1600,18 @@ server <- function(input, output, session) {
     output$dynamic_th_filters <- renderUI({ NULL })
     shinyjs::show("loading_gif_th")
     
-    loaded_data <- load_eba_exposure_data()
-    th_data(loaded_data)
-    display_th_data(loaded_data)
+    preview_result <- fetch_preview_result(get_dataset_source("EXP")$view)
+    th_data(preview_result$data)
+    display_th_data(preview_result$data)
     
     shinyjs::hide("loading_gif_th")
     thematic_data_visible(TRUE)
     thematic_data_loaded(TRUE)
     active_th_dataset_type("EXP")
+
+    if (preview_result$limited) {
+      show_preview_notice("exp-preview-notice", preview_result$total_rows)
+    }
     
     updateSelectizeInput(session, "country_filter_th_standard",
                          choices = c("All Countries" = "All Countries", countries_exp),
@@ -1530,14 +1649,18 @@ server <- function(input, output, session) {
     output$dynamic_th_filters <- renderUI({ NULL })
     shinyjs::show("loading_gif_th")
     
-    loaded_data <- load_eba_sovereign_data()
-    th_data(loaded_data)
-    display_th_data(loaded_data)
+    preview_result <- fetch_preview_result(get_dataset_source("SOV")$view)
+    th_data(preview_result$data)
+    display_th_data(preview_result$data)
     
     shinyjs::hide("loading_gif_th")
     thematic_data_visible(TRUE)
     thematic_data_loaded(TRUE)
     active_th_dataset_type("SOV")
+
+    if (preview_result$limited) {
+      show_preview_notice("sov-preview-notice", preview_result$total_rows)
+    }
     
     updateSelectizeInput(session, "country_filter_th_standard",
                          choices = c("All Countries" = "All Countries", countries_sov),
@@ -1575,14 +1698,18 @@ server <- function(input, output, session) {
     output$dynamic_th_filters <- renderUI({ NULL })
     shinyjs::show("loading_gif_th")
     
-    loaded_data <- load_eba_market_data()
-    th_data(loaded_data)
-    display_th_data(loaded_data)
+    preview_result <- fetch_preview_result(get_dataset_source("MKT")$view)
+    th_data(preview_result$data)
+    display_th_data(preview_result$data)
     
     shinyjs::hide("loading_gif_th")
     thematic_data_visible(TRUE)
     thematic_data_loaded(TRUE)
     active_th_dataset_type("MKT")
+
+    if (preview_result$limited) {
+      show_preview_notice("mkt-preview-notice", preview_result$total_rows)
+    }
     
     updateSelectizeInput(session, "country_filter_th_standard",
                          choices = c("All Countries" = "All Countries", countries_mkt),
@@ -1619,14 +1746,18 @@ server <- function(input, output, session) {
     output$dynamic_th_filters <- renderUI({ NULL })
     shinyjs::show("loading_gif_th")
     
-    loaded_data <- risk_parameters()
-    th_data(loaded_data)
-    display_th_data(loaded_data)
+    preview_result <- fetch_preview_result(get_dataset_source("RPS")$view)
+    th_data(preview_result$data)
+    display_th_data(preview_result$data)
     
     shinyjs::hide("loading_gif_th")
     thematic_data_visible(TRUE)
     thematic_data_loaded(TRUE)
     active_th_dataset_type("RPS")
+
+    if (preview_result$limited) {
+      show_preview_notice("rps-preview-notice", preview_result$total_rows)
+    }
     
     # Populate RPS-specific filters immediately
     updateSelectizeInput(session, "country_filter_th_rps",
@@ -2434,8 +2565,8 @@ server <- function(input, output, session) {
   # --- "Go" button logic ---
   
   observeEvent(input$go_button_th, {
-    data <- th_data()
     active_dataset <- active_th_dataset_type()
+    req(active_dataset)
     
     # Determine which input IDs to use based on dataset type
     if (active_dataset == "BDS") {
@@ -2457,30 +2588,16 @@ server <- function(input, output, session) {
     
     # Special handling for RPS dataset
     if (!is.null(active_dataset) && active_dataset == "RPS") {
-      # For RPS, use the specialized filter inputs
-      if (!is.null(country_input) && !("All Countries" %in% country_input)) {
-        data <- data %>% filter(Country_Label %in% country_input)
-      }
-      
-      if (!is.null(period_input) && !("All Periods" %in% period_input)) {
-        # Convert formatted dates back to YYYYMM
-        selected_periods <- sapply(period_input, function(formatted_date) {
-          date_obj <- zoo::as.yearmon(formatted_date, format = "%B %Y")
-          # Format yearmon directly to YYYYMM
-          format(date_obj, "%Y%m")
-        })
-        data <- data %>% filter(Period %in% selected_periods)
-      }
-      
-      if (!is.null(exposure_input) && !("All Exposures" %in% exposure_input)) {
-        data <- data %>% filter(Exposure_Label %in% exposure_input)
-      }
-      
-      if (!is.null(item_input) && !("All Items" %in% item_input)) {
-        data <- data %>% filter(Common_Item %in% item_input)
+      where_clauses <- build_rps_where_clauses(country_input, period_input, exposure_input, item_input)
+      preview_result <- fetch_preview_result(get_dataset_source("RPS")$view, where_clauses)
+      display_th_data(preview_result$data)
+
+      if (preview_result$limited) {
+        show_preview_notice("rps-preview-notice", preview_result$total_rows)
       }
       
     } else if (!is.null(active_dataset) && active_dataset == "BDS") {
+      data <- th_data()
       # BDS-specific filtering
       if (!is.null(country_input) && !("All Countries" %in% country_input)) {
         data <- data %>% filter(ISO2 %in% country_input)
@@ -2490,212 +2607,60 @@ server <- function(input, output, session) {
         data <- data %>% filter(Name %in% bank_input)
       }
       # No exercise/item filtering for BDS
+      display_th_data(data)
       
     } else {
-      # Standard filtering for non-RPS, non-BDS datasets (PLC, EXP, SOV, MKT)
-      if (!is.null(country_input) && !("All Countries" %in% country_input)) {
-        data <- data %>% filter(ISO2 %in% country_input)
-      }
-      
-      if (!is.null(bank_input) && !("All Banks" %in% bank_input)) {
-        data <- data %>% filter(Bank_ID %in% bank_input)
-      }
-      
-      if (!is.null(exercise_input) && !("All Exercises" %in% exercise_input)) {
-        data <- data %>% filter(Exercise %in% exercise_input)
-      }
-      
-      if (!is.null(item_input) && !("All Items" %in% item_input)) {
-        data <- data %>% filter(Common_Item %in% item_input)
-      }
-      
-      # Apply dynamic filters for standard datasets
-      for (col_name in dynamic_filters_th()) {
-        input_val <- input[[paste0("dynamic_", col_name)]]
-        if (!is.null(input_val) && !("All" %in% input_val)) {
-          
-          if (col_name == "Scenario") {
-            scenario_mapping <- mappings[["Scenario"]]
-            codes_to_always_include <- scenario_mapping[names(scenario_mapping) %in% c("Actual", "Actual Restated", "Actual restated")]
-            
-            selected_scenarios <- setdiff(input_val, "0")
-            final_codes_to_filter <- c(selected_scenarios, codes_to_always_include)
-            
-            adverse_code <- scenario_mapping[names(scenario_mapping) == "Adverse"]
-            if (adverse_code %in% selected_scenarios) {
-              adverse_shock_code <- scenario_mapping[names(scenario_mapping) == "Adverse Sovereign Shock"]
-              final_codes_to_filter <- c(final_codes_to_filter, adverse_shock_code)
-            }
-            
-            final_codes_to_filter <- unique(final_codes_to_filter)
-            
-            if ("0" %in% input_val) {
-              data <- data %>% filter(
-                (.data[[col_name]] %in% final_codes_to_filter) |
-                  (grepl("^(0|total|no breakdown|total / no breakdown)$", .data[[col_name]], ignore.case = TRUE) | is.na(.data[[col_name]]))
-              )
-            } else {
-              data <- data %>% filter(.data[[col_name]] %in% final_codes_to_filter)
-            }
-          } else {
-            if ("0" %in% input_val) {
-              other_vals <- setdiff(input_val, "0")
-              total_pattern <- "^(0|total|no breakdown|total / no breakdown)$"
-              
-              data <- data %>% 
-                filter(
-                  grepl(total_pattern, .data[[col_name]], ignore.case = TRUE) |
-                    is.na(.data[[col_name]]) |
-                    .data[[col_name]] %in% other_vals
-                )
-            } else {
-              data <- data %>% filter(.data[[col_name]] %in% input_val)
-            }
-          }
-        }
+      where_clauses <- build_standard_where_clauses(
+        country_input,
+        bank_input,
+        exercise_input,
+        item_input,
+        dynamic_filters_th(),
+        input
+      )
+      preview_result <- fetch_preview_result(get_dataset_source(active_dataset)$view, where_clauses)
+      display_th_data(preview_result$data)
+
+      if (preview_result$limited) {
+        show_preview_notice(paste0(tolower(active_dataset), "-preview-notice"), preview_result$total_rows)
       }
     }
-    
-    display_th_data(data)
   })
   
   observeEvent(input$go_button_tr, { # New TR Go button logic
-    data <- tr_data() # Use tr_data()
-    
-    if (!is.null(input$country_filter_tr) && !("All Countries" %in% input$country_filter_tr)) {
-      data <- data %>% filter(ISO2 %in% input$country_filter_tr)
+    where_clauses <- build_standard_where_clauses(
+      input$country_filter_tr,
+      input$bank_filter_tr,
+      input$exercise_filter_tr,
+      input$item_filter_tr,
+      dynamic_filters_tr(),
+      input
+    )
+    preview_result <- fetch_preview_result(get_dataset_source("TR")$view, where_clauses)
+    display_tr_data(preview_result$data)
+
+    if (preview_result$limited) {
+      show_preview_notice("tr-preview-notice", preview_result$total_rows)
     }
-    
-    if (!is.null(input$bank_filter_tr) && !("All Banks" %in% input$bank_filter_tr)) {
-      data <- data %>% filter(Bank_ID %in% input$bank_filter_tr)
-    }
-    if (!is.null(input$exercise_filter_tr) && !("All Exercises" %in% input$exercise_filter_tr)) {
-      data <- data %>% filter(Exercise %in% input$exercise_filter_tr)
-    }
-    
-    if (!is.null(input$item_filter_tr) && !("All Items" %in% input$item_filter_tr)) {
-      data <- data %>% filter(Common_Item %in% input$item_filter_tr)
-    }
-    
-    # Filter based on dynamic filters (for TR)
-    for (col_name in dynamic_filters_tr()) { # Use dynamic_filters_tr
-      input_val <- input[[paste0("dynamic_", col_name)]]
-      if (!is.null(input_val) && !("All" %in% input_val)) {
-        
-        # Scenario handling (TR might have different scenarios or none)
-        # Assuming similar logic as ST for "0" and "All" for now,
-        # adjust if TR has specific scenario mappings that differ.
-        if (col_name == "Scenario") { # if TR has scenario filter
-          scenario_mapping <- mappings[["Scenario"]] # Use global mappings
-          codes_to_always_include <- scenario_mapping[names(scenario_mapping) %in% c("Actual", "Actual Restated", "Actual restated")]
-          
-          selected_scenarios <- setdiff(input_val, "0")
-          
-          final_codes_to_filter <- c(selected_scenarios, codes_to_always_include)
-          
-          adverse_code <- scenario_mapping[names(scenario_mapping) == "Adverse"]
-          if (adverse_code %in% selected_scenarios) {
-            adverse_shock_code <- scenario_mapping[names(scenario_mapping) == "Adverse Sovereign Shock"]
-            final_codes_to_filter <- c(final_codes_to_filter, adverse_shock_code)
-          }
-          
-          final_codes_to_filter <- unique(final_codes_to_filter)
-          
-          if ("0" %in% input_val) {
-            data <- data %>% filter(
-              (.data[[col_name]] %in% final_codes_to_filter) |
-                (grepl("^(0|total|no breakdown|total / no breakdown)$", .data[[col_name]], ignore.case = TRUE) | is.na(.data[[col_name]]))
-            )
-          } else {
-            data <- data %>% filter(.data[[col_name]] %in% final_codes_to_filter)
-          }
-        } else { # For other columns
-          if ("0" %in% input_val) {
-            other_vals <- setdiff(input_val, "0")
-            total_pattern <- "^(0|total|no breakdown|total / no breakdown)$"
-            
-            data <- data %>% 
-              filter(
-                grepl(total_pattern, .data[[col_name]], ignore.case = TRUE) |
-                  is.na(.data[[col_name]]) |
-                  .data[[col_name]] %in% other_vals
-              )
-          } else {
-            data <- data %>% filter(.data[[col_name]] %in% input_val)
-          }
-        }
-      }
-    }
-    display_tr_data(data) # Update display_tr_data
   }) # End of observeEvent(input$go_button_tr, ...)
   
   observeEvent(input$go_button_st, {
-    data <- st_data()
-    
-    # Apply standard filters (country, bank, exercise, item)
-    if (!is.null(input$country_filter_st) && !("All Countries" %in% input$country_filter_st)) {
-      data <- data %>% filter(ISO2 %in% input$country_filter_st)
+    active_dataset <- active_st_dataset_type()
+    req(active_dataset)
+    where_clauses <- build_standard_where_clauses(
+      input$country_filter_st,
+      input$bank_filter_st,
+      input$exercise_filter_st,
+      input$item_filter_st,
+      dynamic_filters_st(),
+      input
+    )
+    preview_result <- fetch_preview_result(get_dataset_source(active_dataset)$view, where_clauses)
+    display_st_data(preview_result$data)
+
+    if (preview_result$limited) {
+      show_preview_notice(paste0(tolower(active_dataset), "-preview-notice"), preview_result$total_rows)
     }
-    
-    if (!is.null(input$bank_filter_st) && !("All Banks" %in% input$bank_filter_st)) {
-      data <- data %>% filter(Bank_ID %in% input$bank_filter_st)
-    }
-    
-    if (!is.null(input$exercise_filter_st) && !("All Exercises" %in% input$exercise_filter_st)) {
-      data <- data %>% filter(Exercise %in% input$exercise_filter_st)
-    }
-    
-    if (!is.null(input$item_filter_st) && !("All Items" %in% input$item_filter_st)) {
-      data <- data %>% filter(Common_Item %in% input$item_filter_st)
-    }
-    
-    # Filter based on dynamic filters (for ST)
-    for (col_name in dynamic_filters_st()) {
-      input_val <- input[[paste0("dynamic_", col_name)]]
-      if (!is.null(input_val) && !("All" %in% input_val)) {
-        
-        if (col_name == "Scenario") {
-          scenario_mapping <- mappings[["Scenario"]]
-          codes_to_always_include <- scenario_mapping[names(scenario_mapping) %in% c("Actual", "Actual Restated", "Actual restated")]
-          
-          selected_scenarios <- setdiff(input_val, "0")
-          final_codes_to_filter <- c(selected_scenarios, codes_to_always_include)
-          
-          adverse_code <- scenario_mapping[names(scenario_mapping) == "Adverse"]
-          if (adverse_code %in% selected_scenarios) {
-            adverse_shock_code <- scenario_mapping[names(scenario_mapping) == "Adverse Sovereign Shock"]
-            final_codes_to_filter <- c(final_codes_to_filter, adverse_shock_code)
-          }
-          
-          final_codes_to_filter <- unique(final_codes_to_filter)
-          
-          if ("0" %in% input_val) {
-            data <- data %>% filter(
-              (.data[[col_name]] %in% final_codes_to_filter) |
-                (grepl("^(0|total|no breakdown|total / no breakdown)$", .data[[col_name]], ignore.case = TRUE) | is.na(.data[[col_name]]))
-            )
-          } else {
-            data <- data %>% filter(.data[[col_name]] %in% final_codes_to_filter)
-          }
-        } else {
-          if ("0" %in% input_val) {
-            other_vals <- setdiff(input_val, "0")
-            total_pattern <- "^(0|total|no breakdown|total / no breakdown)$"
-            
-            data <- data %>% 
-              filter(
-                grepl(total_pattern, .data[[col_name]], ignore.case = TRUE) |
-                  is.na(.data[[col_name]]) |
-                  .data[[col_name]] %in% other_vals
-              )
-          } else {
-            data <- data %>% filter(.data[[col_name]] %in% input_val)
-          }
-        }
-      }
-    }
-    
-    display_st_data(data)
   })
   
   
@@ -2930,186 +2895,6 @@ server <- function(input, output, session) {
     zip::zip(zipfile = file, files = files_to_zip, root = temp_dir)
   }
   
-  output$downloadPLCdata <- downloadHandler(
-    filename = "Profit-Losses-Capital-Dataset.parquet",
-    content = function(file) {
-      shinyjs::show("loading_gif_th")
-      on.exit(shinyjs::hide("loading_gif_th"))
-      
-      # DuckDB COPY command requires the full path in the query string
-      query <- sprintf("COPY plc_data_table TO '%s' (FORMAT 'parquet')", file)
-      dbExecute(con, query)
-    }
-  )
-  
-  output$downloadEXPData <- downloadHandler(
-    filename = "Sector-Exposure-Dataset.parquet",
-    content = function(file) {
-      shinyjs::show("loading_gif_th")
-      on.exit(shinyjs::hide("loading_gif_th"))
-      
-      query <- sprintf("COPY exp_data_table TO '%s' (FORMAT 'parquet')", file)
-      dbExecute(con, query)
-    }
-  )
-  
-  output$downloadSOVData <- downloadHandler(
-    filename = "Sovereign-Exposure-Dataset.parquet",
-    content = function(file) {
-      shinyjs::show("loading_gif_th")
-      on.exit(shinyjs::hide("loading_gif_th"))
-      
-      query <- sprintf("COPY sov_data_table TO '%s' (FORMAT 'parquet')", file)
-      dbExecute(con, query)
-    }
-  )
-  
-  output$downloadMKTData <- downloadHandler(
-    filename = "Market-Risk-Dataset.parquet",
-    content = function(file) {
-      shinyjs::show("loading_gif_th")
-      on.exit(shinyjs::hide("loading_gif_th"))
-      
-      query <- sprintf("COPY mkt_data_table TO '%s' (FORMAT 'parquet')", file)
-      dbExecute(con, query)
-    }
-  )
-  
-  # output$downloadSTdata <- downloadHandler(
-  #   filename = "EU-Wide-Stress-Tests-Dataset.fst",
-  #   content = function(file) {
-  #     shinyjs::show("loading_gif_st")
-  #     on.exit(shinyjs::hide("loading_gif_st"))
-  #     data_to_download <- load_st_data()
-  #     fst::write_fst(as.data.frame(data_to_download), path = file)
-  #   }
-  # )
-  # 
-  # output$downloadSSMdata <- downloadHandler(
-  #   filename = "SSM-Stress-Tests-Dataset.fst",
-  #   content = function(file) {
-  #     shinyjs::show("loading_gif_st")
-  #     on.exit(shinyjs::hide("loading_gif_st"))
-  #     data_to_download <- load_ssm_data()
-  #     fst::write_fst(as.data.frame(data_to_download), path = file)
-  #   }
-  # )
-  # 
-  # output$downloadTRdata <- downloadHandler(
-  #   filename = "Transparency-Exercise-Dataset.fst",
-  #   content = function(file) {
-  #     shinyjs::show("loading_gif_tr")
-  #     on.exit(shinyjs::hide("loading_gif_tr"))
-  #     data_to_download <- load_tr_data()
-  #     fst::write_fst(as.data.frame(data_to_download), path = file)
-  #   }
-  # )
-  # 
-  # output$downloadMKTData <- downloadHandler(
-  #   filename = "Market-Risk-Dataset.fst",
-  #   content = function(file) {
-  #     shinyjs::show("loading_gif_th")
-  #     on.exit(shinyjs::hide("loading_gif_th"))
-  #     data_to_download <- load_eba_market_data()
-  #     fst::write_fst(as.data.frame(data_to_download), path = file)
-  #   }
-  # )
-  # 
-  # output$downloadSOVData <- downloadHandler(
-  #   filename = "Sovereign-Exposure-Dataset.fst",
-  #   content = function(file) {
-  #     shinyjs::show("loading_gif_th")
-  #     on.exit(shinyjs::hide("loading_gif_th"))
-  #     data_to_download <- load_eba_sovereign_data()
-  #     fst::write_fst(as.data.frame(data_to_download), path = file)
-  #   }
-  # )
-  # 
-  # output$downloadEXPData <- downloadHandler(
-  #   filename = "Sector-Exposure-Dataset.fst",
-  #   content = function(file) {
-  #     shinyjs::show("loading_gif_th")
-  #     on.exit(shinyjs::hide("loading_gif_th"))
-  #     data_to_download <- load_eba_exposure_data()
-  #     fst::write_fst(as.data.frame(data_to_download), path = file)
-  #   }
-  # )
-  # 
-  # output$downloadPLCdata <- downloadHandler(  # Changed from downloadFilteredData_plc
-  #   filename = "Profit-Losses-Capital-Dataset.fst",
-  #   content = function(file) {
-  #     shinyjs::show("loading_gif_th")
-  #     on.exit(shinyjs::hide("loading_gif_th"))
-  #     data_to_download <- load_eba_plc_data()
-  #     fst::write_fst(as.data.frame(data_to_download), path = file)
-  #   }
-  # )
-  # 
-  output$downloadBDSData <- downloadHandler(
-    filename = "Bank-Distress-Dataset.xlsx",
-    content = function(file) {
-      shinyjs::show("loading_gif_th")
-      on.exit(shinyjs::hide("loading_gif_th"))
-      file.copy(bds_file_path, file, overwrite = TRUE)
-    }
-  )
-  
-  output$downloadRPSData <- downloadHandler(
-    filename = "Risk-Parameters-Dataset.parquet",
-    content = function(file) {
-      shinyjs::show("loading_gif_th")
-      on.exit(shinyjs::hide("loading_gif_th"))
-      
-      query <- sprintf("COPY rps_data_table TO '%s' (FORMAT 'parquet')", file)
-      dbExecute(con, query)
-    }
-  )
-  
-  
-  # output$downloadRPSData <- downloadHandler(  # Changed from downloadFilteredData_rps
-  #   filename = "Risk-Parameters-Dataset.fst",
-  #   content = function(file) {
-  #     shinyjs::show("loading_gif_th")
-  #     on.exit(shinyjs::hide("loading_gif_th"))
-  #     data_to_download <- risk_parameters()
-  #     fst::write_fst(as.data.frame(data_to_download), path = file)
-  #   }
-  # )
-  
-  output$downloadSTdata <- downloadHandler(
-    filename = "EU-Wide-Stress-Tests-Dataset.parquet",
-    content = function(file) {
-      shinyjs::show("loading_gif_st")
-      on.exit(shinyjs::hide("loading_gif_st"))
-      
-      # Export directly from DuckDB to Parquet
-      query <- "COPY st_data_table TO ? (FORMAT 'parquet')"
-      dbExecute(con, query, list(file))
-    }
-  )
-  
-  output$downloadSSMdata <- downloadHandler(
-    filename = "SSM-Stress-Tests-Dataset.parquet",
-    content = function(file) {
-      shinyjs::show("loading_gif_st")
-      on.exit(shinyjs::hide("loading_gif_st"))
-      
-      query <- "COPY ssm_data_table TO ? (FORMAT 'parquet')"
-      dbExecute(con, query, list(file))
-    }
-  )
-  
-  output$downloadTRdata <- downloadHandler(
-    filename = "Transparency-Exercise-Dataset.parquet",
-    content = function(file) {
-      shinyjs::show("loading_gif_tr")
-      on.exit(shinyjs::hide("loading_gif_tr"))
-      
-      query <- "COPY tr_data_table TO ? (FORMAT 'parquet')"
-      dbExecute(con, query, list(file))
-    }
-  )
-  
   # Helper function to generate simple R loading script
   generate_simple_r_script <- function(filename_with_extension) {
     file_extension <- tools::file_ext(filename_with_extension)
@@ -3158,28 +2943,42 @@ server <- function(input, output, session) {
   output$downloadFilteredData_st <- downloadHandler(
     filename = function() { 
       type <- isolate(active_st_dataset_type())
-      ext <- if (nrow(isolate(display_st_data())) >= 500000) ".parquet" else ".csv"
       if (is.null(type)) {
-        paste0("filtered_stress_test_data_", Sys.Date(), ext)
-      } else if (type == "SSM") {
+        return(paste0("filtered_stress_test_data_", Sys.Date(), ".csv"))
+      }
+
+      where_clauses <- build_standard_where_clauses(
+        input$country_filter_st,
+        input$bank_filter_st,
+        input$exercise_filter_st,
+        input$item_filter_st,
+        dynamic_filters_st(),
+        input
+      )
+      ext <- get_export_extension(get_dataset_source(type)$view, where_clauses)
+      if (type == "SSM") {
         paste0("filtered_ssm_data_", Sys.Date(), ext)
       } else {
         paste0("filtered_stress_test_data_", Sys.Date(), ext)
       }
     },
     content = function(file) {
-      req(display_st_data())
+      type <- isolate(active_st_dataset_type())
+      req(type)
       
       shinyjs::show("loading_gif_st")
       on.exit(shinyjs::hide("loading_gif_st"))
-      
-      filtered_df <- isolate(display_st_data())
-      
-      if (nrow(filtered_df) < 500000) {
-        write.csv(filtered_df, file, row.names = FALSE)
-      } else {
-        arrow::write_parquet(filtered_df, file, compression = "snappy")
-      }
+
+      where_clauses <- build_standard_where_clauses(
+        input$country_filter_st,
+        input$bank_filter_st,
+        input$exercise_filter_st,
+        input$item_filter_st,
+        dynamic_filters_st(),
+        input
+      )
+      row_count <- count_dataset_rows(get_dataset_source(type)$view, where_clauses)
+      export_query_result(get_dataset_source(type)$view, where_clauses, file, row_count)
     }
   )
   
@@ -3188,22 +2987,31 @@ server <- function(input, output, session) {
   # Filtered TR data download
   output$downloadFilteredData_tr <- downloadHandler(
     filename = function() {
-      ext <- if (nrow(isolate(display_tr_data())) >= 500000) ".parquet" else ".csv"
+      where_clauses <- build_standard_where_clauses(
+        input$country_filter_tr,
+        input$bank_filter_tr,
+        input$exercise_filter_tr,
+        input$item_filter_tr,
+        dynamic_filters_tr(),
+        input
+      )
+      ext <- get_export_extension(get_dataset_source("TR")$view, where_clauses)
       paste0("filtered_transparency_data_", Sys.Date(), ext)
     },
     content = function(file) {
-      req(display_tr_data())
-      
       shinyjs::show("loading_gif_tr")
       on.exit(shinyjs::hide("loading_gif_tr"))
-      
-      filtered_df <- isolate(display_tr_data())
-      
-      if (nrow(filtered_df) < 500000) {
-        write.csv(filtered_df, file, row.names = FALSE)
-      } else {
-        arrow::write_parquet(filtered_df, file, compression = "snappy")
-      }
+
+      where_clauses <- build_standard_where_clauses(
+        input$country_filter_tr,
+        input$bank_filter_tr,
+        input$exercise_filter_tr,
+        input$item_filter_tr,
+        dynamic_filters_tr(),
+        input
+      )
+      row_count <- count_dataset_rows(get_dataset_source("TR")$view, where_clauses)
+      export_query_result(get_dataset_source("TR")$view, where_clauses, file, row_count)
     }
   )
   
@@ -3212,30 +3020,68 @@ server <- function(input, output, session) {
     filename = function() {
       type <- isolate(active_th_dataset_type())
       dataset_name_lower <- if (is.null(type)) "thematic" else tolower(type)
-      ext <- if (nrow(isolate(display_th_data())) >= 500000) ".parquet" else ".csv"
+
+      ext <- if (is.null(type)) {
+        ".csv"
+      } else if (type == "BDS") {
+        ".xlsx"
+      } else if (type == "RPS") {
+        where_clauses <- build_rps_where_clauses(
+          input$country_filter_th_rps,
+          input$period_filter_th,
+          input$exposure_filter_th,
+          input$item_filter_th_rps
+        )
+        get_export_extension(get_dataset_source("RPS")$view, where_clauses)
+      } else {
+        where_clauses <- build_standard_where_clauses(
+          input$country_filter_th_standard,
+          input$bank_filter_th_standard,
+          input$exercise_filter_th_standard,
+          input$item_filter_th_standard,
+          dynamic_filters_th(),
+          input
+        )
+        get_export_extension(get_dataset_source(type)$view, where_clauses)
+      }
+
       paste0("filtered_", dataset_name_lower, "_data_", Sys.Date(), ext)
     },
     content = function(file) {
-      req(display_th_data())
-      
       shinyjs::show("loading_gif_th")
       on.exit(shinyjs::hide("loading_gif_th"))
-      
-      filtered_df <- isolate(display_th_data())
-      
+
       # Special handling for BDS - it doesn't get filtered
       dataset_type <- isolate(active_th_dataset_type())
+      req(dataset_type)
       if (!is.null(dataset_type) && dataset_type == "BDS") {
         # Just copy the original Excel file
         file.copy(bds_file_path, file, overwrite = TRUE)
         return()
       }
-      
-      if (nrow(filtered_df) < 500000) {
-        write.csv(filtered_df, file, row.names = FALSE)
-      } else {
-        arrow::write_parquet(filtered_df, file, compression = "snappy")
+
+      if (!is.null(dataset_type) && dataset_type == "RPS") {
+        where_clauses <- build_rps_where_clauses(
+          input$country_filter_th_rps,
+          input$period_filter_th,
+          input$exposure_filter_th,
+          input$item_filter_th_rps
+        )
+        row_count <- count_dataset_rows(get_dataset_source("RPS")$view, where_clauses)
+        export_query_result(get_dataset_source("RPS")$view, where_clauses, file, row_count)
+        return()
       }
+
+      where_clauses <- build_standard_where_clauses(
+        input$country_filter_th_standard,
+        input$bank_filter_th_standard,
+        input$exercise_filter_th_standard,
+        input$item_filter_th_standard,
+        dynamic_filters_th(),
+        input
+      )
+      row_count <- count_dataset_rows(get_dataset_source(dataset_type)$view, where_clauses)
+      export_query_result(get_dataset_source(dataset_type)$view, where_clauses, file, row_count)
     }
   )
   

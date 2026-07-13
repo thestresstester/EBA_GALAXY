@@ -50,7 +50,7 @@ static_download_button <- function(path, download_name) {
     href = build_static_download_href(path),
     download = download_name,
     class = "btn btn-default circle-button",
-    ""
+    icon("download")
   )
 }
 
@@ -677,7 +677,7 @@ ui <- fluidPage(
               tabPanel("Visualisation",
                        div(class = "full-width-box",
                            
-                           tabsetPanel(id = "metadata-tabs",
+                           tabsetPanel(id = "visualisation-tabs",
                                        
                                        # Time Series Tab
                                        tabPanel("Time Series Charts",
@@ -1184,6 +1184,17 @@ server <- function(input, output, session) {
   get_export_extension <- function(view_name, where_clauses) {
     if (count_dataset_rows(view_name, where_clauses) >= 500000) ".parquet" else ".csv"
   }
+
+  load_chart_dataset <- function(chart_key, columns = "*") {
+    chart_spec <- get_chart_view_spec(chart_key)
+    query <- if (length(columns) == 1 && identical(columns, "*")) {
+      paste("SELECT * FROM", chart_spec$view)
+    } else {
+      paste("SELECT", paste(columns, collapse = ", "), "FROM", chart_spec$view)
+    }
+
+    dbGetQuery(con, query)
+  }
   
   st_data_visible <- reactiveVal(FALSE)
   tr_data_visible = reactiveVal(FALSE)
@@ -1213,6 +1224,41 @@ server <- function(input, output, session) {
   
   chart_data_loaded <- reactiveVal(FALSE)
   chart_db <- reactiveVal(NULL)
+  visualisation_dataset_ready <- reactiveValues(
+    tr_ratios = FALSE,
+    final_waterfall = FALSE,
+    bank_exp_total = FALSE,
+    sov_exp = FALSE,
+    bank_nace = FALSE,
+    tr_rwas = FALSE,
+    tr_assets = FALSE
+  )
+
+  chart_dataset_enabled <- function(chart_key) {
+    isTRUE(visualisation_dataset_ready[[chart_key]])
+  }
+
+  observeEvent(input$`visualisation-tabs`, {
+    current_tab <- input$`visualisation-tabs`
+
+    if (identical(current_tab, "Time Series Charts") || identical(current_tab, "Density Charts")) {
+      visualisation_dataset_ready$tr_ratios <- TRUE
+    }
+    if (identical(current_tab, "Waterfall Charts")) {
+      visualisation_dataset_ready$final_waterfall <- TRUE
+    }
+    if (identical(current_tab, "Exposure Networks")) {
+      visualisation_dataset_ready$bank_exp_total <- TRUE
+      visualisation_dataset_ready$sov_exp <- TRUE
+    }
+    if (identical(current_tab, "NACE Exposures")) {
+      visualisation_dataset_ready$bank_nace <- TRUE
+    }
+    if (identical(current_tab, "Assets, Liabilities, REAs")) {
+      visualisation_dataset_ready$tr_rwas <- TRUE
+      visualisation_dataset_ready$tr_assets <- TRUE
+    }
+  }, ignoreNULL = FALSE)
   
   
   output$st_data_loaded <- reactive(st_data_loaded())
@@ -3326,7 +3372,7 @@ server <- function(input, output, session) {
     if(input$`main-tabs` == "Visualisation" && !chart_data_loaded()) {
       showModal(modalDialog(
         title = "Loading Visualisation Data",
-        "Preparing chart database...",
+        "Preparing chart data sources...",
         footer = NULL,
         easyClose = FALSE
       ))
@@ -3346,20 +3392,16 @@ server <- function(input, output, session) {
     }
   }, priority = 100)
   
-  # Modify reactive chart data to use DuckDB queries (around line 890)
   tr_ratios <- reactive({
     req(chart_data_loaded())
-    
-    query <- "
-    SELECT * FROM chart_db_table
-    WHERE DB = 'tr_ratios'
-    AND Common_Item IN ('ITM_119', 'ITM_120', 'ITM_121', 'ITM_130', 'ITM_CETFL', 
-                        'ITM_NII', 'ITM_TFL', 'ITM_TOTFL', 'ITM_54', 'ITM_67', 
-                        'ITM_50', 'ITM_46', 'ITM_4')
-  "
-    
-    data <- dbGetQuery(con, query) %>%
-      dplyr::select(-DB) %>%
+    req(chart_dataset_enabled("tr_ratios"))
+
+    data <- load_chart_dataset(
+      "tr_ratios",
+      c("Framework", "ISO2", "Exercise", "Period", "rel_period", "Common_Item",
+        "Bank_ID", "Name", "Country", "Scenario", "Amount")
+    ) %>%
+      dplyr::select(-any_of("DB")) %>%
       select_if(function(x) !(all(is.na(x)) | all(x == ""))) %>%
       filter(Common_Item %in% available_items_ratios) %>%
       left_join(labels, by = "Common_Item")
@@ -3370,11 +3412,13 @@ server <- function(input, output, session) {
   
   final_waterfall <- reactive({
     req(chart_data_loaded())
-    
-    query <- "SELECT * FROM chart_db_table WHERE DB = 'final_waterfall'"
-    data <- dbGetQuery(con, query) %>% 
-      filter(DB == "final_waterfall") %>% 
-      dplyr::select(-DB) %>%
+    req(chart_dataset_enabled("final_waterfall"))
+
+    data <- load_chart_dataset(
+      "final_waterfall",
+      c("Exercise", "Country", "Name", "TR", "rel_period", "Scenario", "Items", "Amount")
+    ) %>%
+      dplyr::select(-any_of("DB")) %>%
       select_if(function(x) !(all(is.na(x)) | all(x == "")))
     
     return(data)
@@ -3382,10 +3426,14 @@ server <- function(input, output, session) {
   
   bank_exp_total <- reactive({
     req(chart_data_loaded())
-    
-    query <- "SELECT * FROM chart_db_table WHERE DB = 'bank_exp_total'"
-    data <- dbGetQuery(con, query) %>%
-      dplyr::select(-DB) %>% 
+    req(chart_dataset_enabled("bank_exp_total"))
+
+    data <- load_chart_dataset(
+      "bank_exp_total",
+      c("TP", "ISO2", "Bank_ID", "Name", "Period", "Exercise", "Portfolio",
+        "Common_Exposure", "Country", "Framework", "Amount")
+    ) %>%
+      dplyr::select(-any_of("DB")) %>%
       select_if(function(x) !(all(is.na(x)) | all(x == ""))) %>%
       distinct() %>%
       pivot_wider(names_from = Framework, values_from = Amount) %>%
@@ -3409,11 +3457,13 @@ server <- function(input, output, session) {
   
   sov_exp <- reactive({
     req(chart_data_loaded())
-    
-    query <- "SELECT * FROM chart_db_table WHERE DB = 'sov_exp'"
-    data <- dbGetQuery(con, query) %>% 
-      filter(DB == "sov_exp") %>% 
-      dplyr::select(-DB) %>%
+    req(chart_dataset_enabled("sov_exp"))
+
+    data <- load_chart_dataset(
+      "sov_exp",
+      c("ISO2", "Bank_ID", "Name", "Period", "Country", "Maturity", "Amount")
+    ) %>%
+      dplyr::select(-any_of("DB")) %>%
       select_if(function(x) !(all(is.na(x)) | all(x == "")))
     
     return(data)
@@ -3421,11 +3471,10 @@ server <- function(input, output, session) {
   
   bank_nace <- reactive({
     req(chart_data_loaded())
-    
-    query <- "SELECT * FROM chart_db_table WHERE DB = 'bank_nace'"
-    data <- dbGetQuery(con, query) %>% 
-      filter(DB == "bank_nace") %>% 
-      dplyr::select(-DB) %>%
+    req(chart_dataset_enabled("bank_nace"))
+
+    data <- load_chart_dataset("bank_nace") %>%
+      dplyr::select(-any_of("DB")) %>%
       select_if(function(x) !(all(is.na(x)) | all(x == "")))
     
     return(data)
@@ -3433,11 +3482,10 @@ server <- function(input, output, session) {
   
   tr_rwas <- reactive({
     req(chart_data_loaded())
-    
-    query <- "SELECT * FROM chart_db_table WHERE DB = 'tr_rwas'"
-    data <- dbGetQuery(con, query) %>% 
-      filter(DB == "tr_rwas") %>% 
-      dplyr::select(-DB) %>%
+    req(chart_dataset_enabled("tr_rwas"))
+
+    data <- load_chart_dataset("tr_rwas") %>%
+      dplyr::select(-any_of("DB")) %>%
       select_if(function(x) !(all(is.na(x)) | all(x == "")))
     
     return(data)
@@ -3445,11 +3493,10 @@ server <- function(input, output, session) {
   
   tr_assets <- reactive({
     req(chart_data_loaded())
-    
-    query <- "SELECT * FROM chart_db_table WHERE DB = 'tr_assets'"
-    data <- dbGetQuery(con, query) %>% 
-      filter(DB == "tr_assets") %>% 
-      dplyr::select(-DB) %>%
+    req(chart_dataset_enabled("tr_assets"))
+
+    data <- load_chart_dataset("tr_assets") %>%
+      dplyr::select(-any_of("DB")) %>%
       select_if(function(x) !(all(is.na(x)) | all(x == "")))
     
     return(data)
@@ -4154,15 +4201,15 @@ server <- function(input, output, session) {
   
   observe({
     req(input$vis_net_exp_type)
-    req(bank_exp_total())
-    req(sov_exp())
     
     if(input$vis_net_exp_type == "risk") {
+      req(bank_exp_total())
       periods <- bank_exp_total() %>%
         distinct(Period) %>%
         arrange(desc(Period)) %>%
         pull(Period)
     } else {
+      req(sov_exp())
       periods <- sov_exp() %>%
         distinct(Period) %>%
         arrange(desc(Period)) %>%

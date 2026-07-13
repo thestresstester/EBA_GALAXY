@@ -12,6 +12,113 @@ numeric_cols = c("Period", "Scenario", "Country", "Maturity",
                  "NACE_Codes", "Financial_Instruments", "Fin_End_Year", "retail_sample", "retail_sample_ex",
                  "CR_exp_moratoria", "CR_guarantees", "IFRS9_Stages")
 
+preview_row_limit <- 5000L
+
+dataset_sources <- list(
+  ST = list(
+    view = "st_data_table",
+    file = "Meta/Original Data/Total_Stress_Tests.parquet"
+  ),
+  SSM = list(
+    view = "ssm_data_table",
+    file = "Meta/Original Data/Total_SSM.parquet"
+  ),
+  TR = list(
+    view = "tr_data_table",
+    file = "Meta/Original Data/Total_Transparency.parquet"
+  ),
+  EXP = list(
+    view = "exp_data_table",
+    file = "Meta/Original Data/Merged Datasets/EBA_Exposure.parquet"
+  ),
+  MKT = list(
+    view = "mkt_data_table",
+    file = "Meta/Original Data/Merged Datasets/EBA_Market.parquet"
+  ),
+  PLC = list(
+    view = "plc_data_table",
+    file = "Meta/Original Data/Merged Datasets/EBA_PLC.parquet"
+  ),
+  SOV = list(
+    view = "sov_data_table",
+    file = "Meta/Original Data/Merged Datasets/EBA_Sovereign.parquet"
+  ),
+  RPS = list(
+    view = "rps_data_table",
+    file = "Meta/Original Data/EBA_Risk_Parameters.parquet"
+  )
+)
+
+get_dataset_source <- function(dataset_type) {
+  dataset_sources[[dataset_type]]
+}
+
+escape_sql_string <- function(value) {
+  gsub("'", "''", as.character(value), fixed = TRUE)
+}
+
+quote_sql_values <- function(values) {
+  values <- as.character(values)
+  quoted_values <- vapply(values, function(value) {
+    paste0("'", escape_sql_string(value), "'")
+  }, character(1))
+
+  paste(quoted_values, collapse = ", ")
+}
+
+build_select_query <- function(view_name, where_clauses = character(), limit = NULL) {
+  query <- paste("SELECT * FROM", view_name)
+
+  if (length(where_clauses) > 0) {
+    query <- paste(query, "WHERE", paste(where_clauses, collapse = " AND "))
+  }
+
+  if (!is.null(limit)) {
+    query <- paste(query, "LIMIT", as.integer(limit))
+  }
+
+  query
+}
+
+build_count_query <- function(view_name, where_clauses = character()) {
+  query <- paste("SELECT COUNT(*) AS row_count FROM", view_name)
+
+  if (length(where_clauses) > 0) {
+    query <- paste(query, "WHERE", paste(where_clauses, collapse = " AND "))
+  }
+
+  query
+}
+
+apply_dataset_types <- function(db) {
+  db %>%
+    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
+    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
+}
+
+fetch_dataset_rows <- function(view_name, where_clauses = character(), limit = NULL) {
+  db <- dbGetQuery(con, build_select_query(view_name, where_clauses, limit))
+  apply_dataset_types(db)
+}
+
+count_dataset_rows <- function(view_name, where_clauses = character()) {
+  dbGetQuery(con, build_count_query(view_name, where_clauses))$row_count[[1]]
+}
+
+copy_dataset_export <- function(view_name, destination, where_clauses = character(), format = c("parquet", "csv")) {
+  format <- match.arg(format)
+  destination_sql <- escape_sql_string(normalizePath(destination, winslash = "/", mustWork = FALSE))
+  select_query <- build_select_query(view_name, where_clauses)
+
+  copy_query <- if (identical(format, "parquet")) {
+    sprintf("COPY (%s) TO '%s' (FORMAT 'parquet')", select_query, destination_sql)
+  } else {
+    sprintf("COPY (%s) TO '%s' (HEADER, DELIMITER ',')", select_query, destination_sql)
+  }
+
+  dbExecute(con, copy_query)
+}
+
 # Create DuckDB connection (add this at the top of global.R, around line 13)
 con <- dbConnect(duckdb::duckdb(), dbdir = ":memory:")
 
@@ -64,136 +171,37 @@ dbExecute(con, "
 ")
 
 # Modified load functions that use DuckDB
-load_st_data <- function() {
-  query <- "SELECT * FROM st_data_table"
-  db <- dbGetQuery(con, query) %>%
-    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-  return(db)
+load_st_data <- function(limit = preview_row_limit, where_clauses = character()) {
+  fetch_dataset_rows("st_data_table", where_clauses, limit)
 }
 
-load_ssm_data <- function() {
-  query <- "SELECT * FROM ssm_data_table"
-  db <- dbGetQuery(con, query) %>%
-    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-  return(db)
+load_ssm_data <- function(limit = preview_row_limit, where_clauses = character()) {
+  fetch_dataset_rows("ssm_data_table", where_clauses, limit)
 }
 
-load_tr_data <- function() {
-  query <- "SELECT * FROM tr_data_table"
-  db <- dbGetQuery(con, query) %>%
-    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-  return(db)
+load_tr_data <- function(limit = preview_row_limit, where_clauses = character()) {
+  fetch_dataset_rows("tr_data_table", where_clauses, limit)
 }
 
-load_eba_exposure_data <- function() {
-  query <- "SELECT * FROM exp_data_table"
-  db <- dbGetQuery(con, query) %>%
-    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-  return(db)
+load_eba_exposure_data <- function(limit = preview_row_limit, where_clauses = character()) {
+  fetch_dataset_rows("exp_data_table", where_clauses, limit)
 }
 
-load_eba_market_data <- function() {
-  query <- "SELECT * FROM mkt_data_table"
-  db <- dbGetQuery(con, query) %>%
-    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-  return(db)
+load_eba_market_data <- function(limit = preview_row_limit, where_clauses = character()) {
+  fetch_dataset_rows("mkt_data_table", where_clauses, limit)
 }
 
-load_eba_plc_data <- function() {
-  query <- "SELECT * FROM plc_data_table"
-  db <- dbGetQuery(con, query) %>%
-    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-  return(db)
+load_eba_plc_data <- function(limit = preview_row_limit, where_clauses = character()) {
+  fetch_dataset_rows("plc_data_table", where_clauses, limit)
 }
 
-load_eba_sovereign_data <- function() {
-  query <- "SELECT * FROM sov_data_table"
-  db <- dbGetQuery(con, query) %>%
-    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-  return(db)
+load_eba_sovereign_data <- function(limit = preview_row_limit, where_clauses = character()) {
+  fetch_dataset_rows("sov_data_table", where_clauses, limit)
 }
 
-loadRPSdata <- function() {
-  query <- "SELECT * FROM rps_data_table"
-  db <- dbGetQuery(con, query) %>%
-    mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-    mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-  return(db)
+loadRPSdata <- function(limit = preview_row_limit, where_clauses = character()) {
+  fetch_dataset_rows("rps_data_table", where_clauses, limit)
 }
-
-# load_st_data <- function() {
-#   # This function loads the EU-Wide Stress-Test dataset.
-#   db = fst::read_fst("Meta/Original Data/Total_Stress_Tests.fst") %>% 
-#     dplyr::select(-retail_sample, -retail_sample_ex) %>%
-#     mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-#     mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-#   return(db)
-# }
-# 
-# load_ssm_data <- function() {
-#   # This function loads the SSM Stress-Test dataset.
-#   db = fst::read_fst("Meta/Original Data/Total_SSM.fst") %>% 
-#     dplyr::select(-retail_sample, -retail_sample_ex) %>%
-#     mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-#     mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-#   return(db)
-# }
-# 
-# load_tr_data <- function() {
-#   # This function loads the Transparency Exercise dataset.
-#   db = fst::read_fst("Meta/Original Data/Total_Transparency.fst") %>% 
-#     dplyr::select(-retail_sample, -retail_sample_ex) %>%
-#     mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-#     mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-#   return(db)
-# }
-# 
-# load_eba_exposure_data <- function() {
-#   db = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_Exposure.fst") %>% 
-#     dplyr::select(-retail_sample, -retail_sample_ex) %>%
-#     mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-#     mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-#   return(db)
-# }
-# 
-# load_eba_market_data <- function() {
-#   db = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_Market.fst") %>% 
-#     dplyr::select(-retail_sample, -retail_sample_ex) %>%
-#     mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-#     mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-#   return(db)
-# }
-# 
-# load_eba_plc_data <- function() {
-#   db = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_PLC.fst") %>% 
-#     dplyr::select(-retail_sample, -retail_sample_ex) %>%
-#     mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-#     mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-#   return(db)
-# }
-# 
-# load_eba_sovereign_data <- function() {
-#   db = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_Sovereign.fst") %>% 
-#     dplyr::select(-retail_sample, -retail_sample_ex) %>%
-#     mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-#     mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-#   return(db)
-# }
-# 
-# load_eba_ssm_data <- function() {
-#   db = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_SSM.fst") %>% 
-#     dplyr::select(-retail_sample, -retail_sample_ex) %>%
-#     mutate(across(intersect(categorical_cols, colnames(.)), ~as.character(.))) %>%
-#     mutate(across(intersect(numeric_cols, colnames(.)), ~as.numeric(as.character(.))))
-#   return(db)
-# }
 
 ### Metadata Items
 
@@ -614,13 +622,13 @@ distress_event = function(){
 
 ## Risk parameters dataset 
 risk_parameters = function(){
-  db = fst::read_fst("Meta/Original Data/EBA_Risk_Parameters.fst") 
-  return(db)
+  loadRPSdata()
 }
 
-risk_parameters_structure = fst::read_fst("Meta/Original Data/EBA_Risk_Parameters.fst") %>% 
-  dplyr::select(Country_Label, Common_Item, Period, Exposure_Label) %>% 
-  distinct()
+risk_parameters_structure = dbGetQuery(con, "
+  SELECT DISTINCT Country_Label, Common_Item, Period, Exposure_Label
+  FROM rps_data_table
+")
 
 countries_rps = sort(unique(risk_parameters_structure$Country_Label))
 

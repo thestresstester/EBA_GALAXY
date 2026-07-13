@@ -2242,13 +2242,13 @@ chart_db = plyr::rbind.fill(tr_ratios, final_waterfall, tr_rwas, tr_assets, bank
 chart_output_dir <- "../Original Data/Chart Data"
 dir.create(chart_output_dir, recursive = TRUE, showWarnings = FALSE)
 
-arrow::write_parquet(tr_ratios %>% dplyr::select(-DB), file.path(chart_output_dir, "tr_ratios.parquet"), compression = "snappy")
-arrow::write_parquet(final_waterfall %>% dplyr::select(-DB), file.path(chart_output_dir, "final_waterfall.parquet"), compression = "snappy")
-arrow::write_parquet(tr_rwas %>% dplyr::select(-DB), file.path(chart_output_dir, "tr_rwas.parquet"), compression = "snappy")
-arrow::write_parquet(tr_assets %>% dplyr::select(-DB), file.path(chart_output_dir, "tr_assets.parquet"), compression = "snappy")
-arrow::write_parquet(bank_exp_total %>% dplyr::select(-DB), file.path(chart_output_dir, "bank_exp_total.parquet"), compression = "snappy")
-arrow::write_parquet(bank_nace %>% dplyr::select(-DB), file.path(chart_output_dir, "bank_nace.parquet"), compression = "snappy")
-arrow::write_parquet(sov_exp %>% dplyr::select(-DB), file.path(chart_output_dir, "sov_exp.parquet"), compression = "snappy")
+arrow::write_parquet(tr_ratios, file.path(chart_output_dir, "tr_ratios.parquet"), compression = "snappy")
+arrow::write_parquet(final_waterfall, file.path(chart_output_dir, "final_waterfall.parquet"), compression = "snappy")
+arrow::write_parquet(tr_rwas, file.path(chart_output_dir, "tr_rwas.parquet"), compression = "snappy")
+arrow::write_parquet(tr_assets, file.path(chart_output_dir, "tr_assets.parquet"), compression = "snappy")
+arrow::write_parquet(bank_exp_total, file.path(chart_output_dir, "bank_exp_total.parquet"), compression = "snappy")
+arrow::write_parquet(bank_nace, file.path(chart_output_dir, "bank_nace.parquet"), compression = "snappy")
+arrow::write_parquet(sov_exp, file.path(chart_output_dir, "sov_exp.parquet"), compression = "snappy")
 
 arrow::write_parquet(chart_db, "../Original Data/chart_db.parquet", compression = "snappy")
 

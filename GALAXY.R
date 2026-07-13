@@ -1381,6 +1381,74 @@ server <- function(input, output, session) {
 
     dbGetQuery(con, query)
   }
+
+  load_enabled_chart_dataset <- function(chart_key, columns = "*") {
+    req(chart_data_loaded())
+    req(chart_dataset_enabled(chart_key))
+
+    load_chart_dataset(chart_key, columns) %>%
+      dplyr::select(-any_of("DB")) %>%
+      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+  }
+
+  load_standard_thematic_dataset <- function(type, country_choices, bank_choices) {
+    reset_all_panels()
+    shinyjs::reset("th_filters_wrapper")
+    output$dynamic_th_filters <- renderUI({ NULL })
+    shinyjs::show("loading_gif_th")
+    on.exit(shinyjs::hide("loading_gif_th"), add = TRUE)
+
+    preview_result <- fetch_preview_result(get_dataset_source(type)$view)
+    th_data(preview_result$data)
+    display_th_data(preview_result$data)
+
+    thematic_data_visible(TRUE)
+    thematic_data_loaded(TRUE)
+    active_th_dataset_type(type)
+
+    if (preview_result$limited) {
+      show_preview_notice(paste0(tolower(type), "-preview-notice"), preview_result$total_rows)
+    }
+
+    updateSelectizeInput(session, "country_filter_th_standard",
+                         choices = c("All Countries" = "All Countries", country_choices),
+                         selected = NULL,
+                         server = TRUE)
+
+    updateSelectizeInput(session, "bank_filter_th_standard",
+                         choices = c("All Banks" = "All Banks", bank_choices),
+                         selected = NULL,
+                         server = TRUE)
+
+    available_exercises <- bk_struct %>%
+      filter(DB == type) %>%
+      dplyr::select(Exercise) %>%
+      distinct()
+
+    updateSelectizeInput(session, "exercise_filter_th_standard",
+                         choices = c("All Exercises", sort(as.character(available_exercises$Exercise))),
+                         selected = NULL,
+                         server = TRUE)
+
+    available_items <- bk_struct %>%
+      filter(DB == type, Exercise %in% available_exercises$Exercise) %>%
+      dplyr::select(Common_Item) %>%
+      distinct()
+
+    available_items_th(available_items$Common_Item)
+    updateSelectizeInput(session, "item_filter_th_standard",
+                         choices = c("All Items", sort_common_items(available_items$Common_Item)),
+                         selected = NULL,
+                         server = TRUE)
+  }
+
+  register_reset_button <- function(input_id, loading_gif_id) {
+    observeEvent(input[[input_id]], {
+      shinyjs::show(loading_gif_id)
+      reset_all_panels()
+      shinyjs::hide(loading_gif_id)
+    })
+  }
   
   st_data_visible <- reactiveVal(FALSE)
   tr_data_visible = reactiveVal(FALSE)
@@ -1396,7 +1464,6 @@ server <- function(input, output, session) {
   display_th_data <- reactiveVal()
   
   active_st_dataset_type <- reactiveVal(NULL) 
-  active_tr_dataset_type <- reactiveVal(NULL)
   active_th_dataset_type <- reactiveVal(NULL)
   dynamic_filters_st <- reactiveVal(list())
   dynamic_filters_tr <- reactiveVal(list())
@@ -1704,7 +1771,6 @@ server <- function(input, output, session) {
     shinyjs::hide("loading_gif_tr")
     tr_data_visible(TRUE)
     tr_data_loaded(TRUE)
-    active_tr_dataset_type("TR") # Set dataset type to TR
 
     if (preview_result$limited) {
       show_preview_notice("tr-preview-notice", preview_result$total_rows)
@@ -1742,202 +1808,20 @@ server <- function(input, output, session) {
                          server = TRUE)
   })
   
-  # For the PLC load button, replace the existing observeEvent with this:
-  
   observeEvent(input$loadPLCdata, {
-    reset_all_panels()
-    shinyjs::reset("th_filters_wrapper")
-    output$dynamic_th_filters <- renderUI({ NULL })
-    shinyjs::show("loading_gif_th")
-    
-    preview_result <- fetch_preview_result(get_dataset_source("PLC")$view)
-    th_data(preview_result$data)
-    display_th_data(preview_result$data)
-    
-    shinyjs::hide("loading_gif_th")
-    thematic_data_visible(TRUE)
-    thematic_data_loaded(TRUE)
-    active_th_dataset_type("PLC")
-
-    if (preview_result$limited) {
-      show_preview_notice("plc-preview-notice", preview_result$total_rows)
-    }
-    
-    # Populate filters immediately after setting dataset type
-    updateSelectizeInput(session, "country_filter_th_standard",
-                         choices = c("All Countries" = "All Countries", countries_plc),
-                         selected = NULL,
-                         server = TRUE)
-    
-    updateSelectizeInput(session, "bank_filter_th_standard",
-                         choices = c("All Banks" = "All Banks", initial_bank_plc),
-                         selected = NULL,
-                         server = TRUE)
-    
-    available_exercises <- bk_struct %>% filter(DB == "PLC") %>% 
-      dplyr::select(Exercise) %>% 
-      distinct()
-    updateSelectizeInput(session, "exercise_filter_th_standard",
-                         choices = c("All Exercises", sort(as.character(available_exercises$Exercise))),
-                         selected = NULL,
-                         server = TRUE)
-    
-    available_items <- bk_struct %>% 
-      filter(DB == "PLC" & Exercise %in% available_exercises$Exercise) %>% 
-      dplyr::select(Common_Item) %>% 
-      distinct()
-    available_items_th(available_items$Common_Item)
-    updateSelectizeInput(session, "item_filter_th_standard",
-                         choices = c("All Items", sort_common_items(available_items$Common_Item)),
-                         selected = NULL,
-                         server = TRUE)
+    load_standard_thematic_dataset("PLC", countries_plc, initial_bank_plc)
   })
   
-  # Apply the same pattern to EXP:
   observeEvent(input$loadEXPdata, {
-    reset_all_panels()
-    shinyjs::reset("th_filters_wrapper")
-    output$dynamic_th_filters <- renderUI({ NULL })
-    shinyjs::show("loading_gif_th")
-    
-    preview_result <- fetch_preview_result(get_dataset_source("EXP")$view)
-    th_data(preview_result$data)
-    display_th_data(preview_result$data)
-    
-    shinyjs::hide("loading_gif_th")
-    thematic_data_visible(TRUE)
-    thematic_data_loaded(TRUE)
-    active_th_dataset_type("EXP")
-
-    if (preview_result$limited) {
-      show_preview_notice("exp-preview-notice", preview_result$total_rows)
-    }
-    
-    updateSelectizeInput(session, "country_filter_th_standard",
-                         choices = c("All Countries" = "All Countries", countries_exp),
-                         selected = NULL,
-                         server = TRUE)
-    
-    updateSelectizeInput(session, "bank_filter_th_standard",
-                         choices = c("All Banks" = "All Banks", initial_bank_exp),
-                         selected = NULL,
-                         server = TRUE)
-    
-    available_exercises <- bk_struct %>% filter(DB == "EXP") %>% 
-      dplyr::select(Exercise) %>% 
-      distinct()
-    updateSelectizeInput(session, "exercise_filter_th_standard",
-                         choices = c("All Exercises", sort(as.character(available_exercises$Exercise))),
-                         selected = NULL,
-                         server = TRUE)
-    
-    available_items <- bk_struct %>% 
-      filter(DB == "EXP" & Exercise %in% available_exercises$Exercise) %>% 
-      dplyr::select(Common_Item) %>% 
-      distinct()
-    available_items_th(available_items$Common_Item)
-    updateSelectizeInput(session, "item_filter_th_standard",
-                         choices = c("All Items", sort_common_items(available_items$Common_Item)),
-                         selected = NULL,
-                         server = TRUE)
+    load_standard_thematic_dataset("EXP", countries_exp, initial_bank_exp)
   })
   
-  # Apply to SOV:
   observeEvent(input$loadSOVdata, {
-    reset_all_panels()
-    shinyjs::reset("th_filters_wrapper")
-    output$dynamic_th_filters <- renderUI({ NULL })
-    shinyjs::show("loading_gif_th")
-    
-    preview_result <- fetch_preview_result(get_dataset_source("SOV")$view)
-    th_data(preview_result$data)
-    display_th_data(preview_result$data)
-    
-    shinyjs::hide("loading_gif_th")
-    thematic_data_visible(TRUE)
-    thematic_data_loaded(TRUE)
-    active_th_dataset_type("SOV")
-
-    if (preview_result$limited) {
-      show_preview_notice("sov-preview-notice", preview_result$total_rows)
-    }
-    
-    updateSelectizeInput(session, "country_filter_th_standard",
-                         choices = c("All Countries" = "All Countries", countries_sov),
-                         selected = NULL,
-                         server = TRUE)
-    
-    updateSelectizeInput(session, "bank_filter_th_standard",
-                         choices = c("All Banks" = "All Banks", initial_bank_sov),
-                         selected = NULL,
-                         server = TRUE)
-    
-    available_exercises <- bk_struct %>% filter(DB == "SOV") %>% 
-      dplyr::select(Exercise) %>% 
-      distinct()
-    updateSelectizeInput(session, "exercise_filter_th_standard",
-                         choices = c("All Exercises", sort(as.character(available_exercises$Exercise))),
-                         selected = NULL,
-                         server = TRUE)
-    
-    available_items <- bk_struct %>% 
-      filter(DB == "SOV" & Exercise %in% available_exercises$Exercise) %>% 
-      dplyr::select(Common_Item) %>% 
-      distinct()
-    available_items_th(available_items$Common_Item)
-    updateSelectizeInput(session, "item_filter_th_standard",
-                         choices = c("All Items", sort_common_items(available_items$Common_Item)),
-                         selected = NULL,
-                         server = TRUE)
+    load_standard_thematic_dataset("SOV", countries_sov, initial_bank_sov)
   })
   
-  # Apply to MKT:
   observeEvent(input$loadMKTdata, {
-    reset_all_panels()
-    shinyjs::reset("th_filters_wrapper")
-    output$dynamic_th_filters <- renderUI({ NULL })
-    shinyjs::show("loading_gif_th")
-    
-    preview_result <- fetch_preview_result(get_dataset_source("MKT")$view)
-    th_data(preview_result$data)
-    display_th_data(preview_result$data)
-    
-    shinyjs::hide("loading_gif_th")
-    thematic_data_visible(TRUE)
-    thematic_data_loaded(TRUE)
-    active_th_dataset_type("MKT")
-
-    if (preview_result$limited) {
-      show_preview_notice("mkt-preview-notice", preview_result$total_rows)
-    }
-    
-    updateSelectizeInput(session, "country_filter_th_standard",
-                         choices = c("All Countries" = "All Countries", countries_mkt),
-                         selected = NULL,
-                         server = TRUE)
-    
-    updateSelectizeInput(session, "bank_filter_th_standard",
-                         choices = c("All Banks" = "All Banks", initial_bank_mkt),
-                         selected = NULL,
-                         server = TRUE)
-    
-    available_exercises <- bk_struct %>% filter(DB == "MKT") %>% 
-      dplyr::select(Exercise) %>% 
-      distinct()
-    updateSelectizeInput(session, "exercise_filter_th_standard",
-                         choices = c("All Exercises", sort(as.character(available_exercises$Exercise))),
-                         selected = NULL,
-                         server = TRUE)
-    
-    available_items <- bk_struct %>% 
-      filter(DB == "MKT" & Exercise %in% available_exercises$Exercise) %>% 
-      dplyr::select(Common_Item) %>% 
-      distinct()
-    available_items_th(available_items$Common_Item)
-    updateSelectizeInput(session, "item_filter_th_standard",
-                         choices = c("All Items", sort_common_items(available_items$Common_Item)),
-                         selected = NULL,
-                         server = TRUE)
+    load_standard_thematic_dataset("MKT", countries_mkt, initial_bank_mkt)
   })
   
   observeEvent(input$loadRPSdata, {
@@ -2081,13 +1965,12 @@ server <- function(input, output, session) {
   observeEvent(input$country_filter_tr, {
     req(tr_data())
     shinyjs::show("loading_gif_tr")
-    context <- active_tr_dataset_type() # Use TR context
     
     if (is.null(input$country_filter_tr) || "All Countries" %in% input$country_filter_tr) {
       # Reset bank, exercise, and item filters to all for the current context
       updateSelectizeInput(session, "bank_filter_tr", choices = c("All Banks" = "All Banks", initial_bank_tr), selected = NULL)
-      available_exercises <- bk_struct %>% filter(DB == context) %>% dplyr::select(Exercise) %>% distinct()
-      available_items <- bk_struct %>% filter(DB == context) %>% dplyr::select(Common_Item) %>% distinct()
+      available_exercises <- bk_struct %>% filter(DB == "TR") %>% dplyr::select(Exercise) %>% distinct()
+      available_items <- bk_struct %>% filter(DB == "TR") %>% dplyr::select(Common_Item) %>% distinct()
       
       updateSelectizeInput(session, "exercise_filter_tr", choices = c("All Exercises", sort(as.character(available_exercises$Exercise))), selected = NULL)
       updateSelectizeInput(session, "item_filter_tr", choices = c("All Items", sort_common_items(available_items$Common_Item)), selected = NULL)
@@ -2100,7 +1983,7 @@ server <- function(input, output, session) {
     bank_choices <- setNames(banks_for_country$Bank_ID, banks_for_country$DisplayName)
     updateSelectizeInput(session, "bank_filter_tr", choices = c("All Banks" = "All Banks", bank_choices), selected = NULL)
     
-    filtered_bk_country <- bk_struct %>% filter(DB == context, ISO2 %in% input$country_filter_tr)
+    filtered_bk_country <- bk_struct %>% filter(DB == "TR", ISO2 %in% input$country_filter_tr)
     available_exercises <- filtered_bk_country %>% dplyr::select(Exercise) %>% distinct()
     updateSelectizeInput(session, "exercise_filter_tr", choices = c("All Exercises", sort(as.character(available_exercises$Exercise))), selected = NULL)
     
@@ -2112,13 +1995,12 @@ server <- function(input, output, session) {
   
   observeEvent(input$bank_filter_tr, { # New TR bank filter
     req(tr_data())
-    context <- active_tr_dataset_type() # Use TR context
     
     if (is.null(input$bank_filter_tr) || "All Banks" %in% input$bank_filter_tr) {
       return()
     }
     
-    filtered_bk_bank <- bk_struct %>% filter(DB == context, Bank_ID %in% input$bank_filter_tr)
+    filtered_bk_bank <- bk_struct %>% filter(DB == "TR", Bank_ID %in% input$bank_filter_tr)
     
     available_exercises <- filtered_bk_bank %>% dplyr::select(Exercise) %>% distinct()
     updateSelectizeInput(session, "exercise_filter_tr", choices = c("All Exercises", sort(as.character(available_exercises$Exercise))), selected = NULL)
@@ -2378,14 +2260,13 @@ server <- function(input, output, session) {
   
   observeEvent(input$exercise_filter_tr, { # New TR exercise filter
     req(tr_data())
-    context <- active_tr_dataset_type() # Use TR context
     
     if (is.null(input$exercise_filter_tr) || "All Exercises" %in% input$exercise_filter_tr) {
       # If no specific exercise is selected, or "All Exercises" is chosen,
       # reset item filter based on current country/bank selections.
       
       # Determine base filter for bk_struct
-      base_filter <- bk_struct %>% filter(DB == context)
+      base_filter <- bk_struct %>% filter(DB == "TR")
       if (!is.null(input$country_filter_tr) && !("All Countries" %in% input$country_filter_tr)) {
         base_filter <- base_filter %>% filter(ISO2 %in% input$country_filter_tr)
       }
@@ -2403,7 +2284,7 @@ server <- function(input, output, session) {
     }
     
     # Filter bk_struct based on selected country, bank, and exercise
-    filtered_bk <- bk_struct %>% filter(DB == context)
+    filtered_bk <- bk_struct %>% filter(DB == "TR")
     
     if (!is.null(input$country_filter_tr) && !("All Countries" %in% input$country_filter_tr)) {
       filtered_bk <- filtered_bk %>% filter(ISO2 %in% input$country_filter_tr)
@@ -2521,15 +2402,13 @@ server <- function(input, output, session) {
     if (!is.null(input$item_filter_tr) && length(input$item_filter_tr) > 0) {
       
       selected_item <- input$item_filter_tr
-      active_dataset <- active_tr_dataset_type()
-      
       items_to_filter <- if ("All Items" %in% selected_item) {
         available_items_tr()
       } else {
         selected_item
       }
       
-      item_data <- itm_struct_labelled %>% filter(DB == active_dataset, Common_Item %in% items_to_filter)
+      item_data <- itm_struct_labelled %>% filter(DB == "TR", Common_Item %in% items_to_filter)
       
       # Identify columns with more than one unique value and are not all NA
       cols_to_check <- setdiff(names(item_data), "Common_Item")
@@ -2898,59 +2777,15 @@ server <- function(input, output, session) {
     available_items_th(NULL)
   })
   
-  observeEvent(input$resetSTdata, {
-    shinyjs::show("loading_gif_st")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_st")
-  })
-  
-  observeEvent(input$resetSSMdata, {
-    shinyjs::show("loading_gif_st")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_st")
-  })
-  
-  observeEvent(input$resetTRdata, {
-    shinyjs::show("loading_gif_tr")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_tr")
-  })
-  
-  observeEvent(input$resetPLCdata, { # New PLC reset
-    shinyjs::show("loading_gif_th")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_th")
-  })
-  
-  observeEvent(input$resetEXPdata, { # New EXP reset
-    shinyjs::show("loading_gif_th")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_th")
-  })
-  
-  observeEvent(input$resetSOVdata, { # New SOV reset
-    shinyjs::show("loading_gif_th")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_th")
-  })
-  
-  observeEvent(input$resetMKTdata, { # New MKT reset
-    shinyjs::show("loading_gif_th")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_th")
-  })
-  
-  observeEvent(input$resetRPSdata, { # New RPS reset
-    shinyjs::show("loading_gif_th")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_th")
-  })
-  
-  observeEvent(input$resetBDSdata, { # New BDS reset
-    shinyjs::show("loading_gif_th")
-    reset_all_panels()
-    shinyjs::hide("loading_gif_th")
-  })
+  register_reset_button("resetSTdata", "loading_gif_st")
+  register_reset_button("resetSSMdata", "loading_gif_st")
+  register_reset_button("resetTRdata", "loading_gif_tr")
+  register_reset_button("resetPLCdata", "loading_gif_th")
+  register_reset_button("resetEXPdata", "loading_gif_th")
+  register_reset_button("resetSOVdata", "loading_gif_th")
+  register_reset_button("resetMKTdata", "loading_gif_th")
+  register_reset_button("resetRPSdata", "loading_gif_th")
+  register_reset_button("resetBDSdata", "loading_gif_th")
   
   reset_all_panels <- function() {
     st_data_visible(FALSE)
@@ -2966,7 +2801,6 @@ server <- function(input, output, session) {
     thematic_data_loaded(FALSE)
     thematic_data_visible(FALSE)
     active_st_dataset_type(NULL)
-    active_tr_dataset_type(NULL)
     active_th_dataset_type(NULL)
     dynamic_filters_st(list())
     dynamic_filters_tr(list())
@@ -3341,16 +3175,11 @@ server <- function(input, output, session) {
   }, priority = 100)
   
   tr_ratios <- reactive({
-    req(chart_data_loaded())
-    req(chart_dataset_enabled("tr_ratios"))
-
-    data <- load_chart_dataset(
+    data <- load_enabled_chart_dataset(
       "tr_ratios",
       c("Framework", "ISO2", "Exercise", "Period", "rel_period", "Common_Item",
         "Bank_ID", "Name", "Country", "Scenario", "Amount")
     ) %>%
-      dplyr::select(-any_of("DB")) %>%
-      select_if(function(x) !(all(is.na(x)) | all(x == ""))) %>%
       filter(Common_Item %in% available_items_ratios) %>%
       left_join(labels, by = "Common_Item")
     
@@ -3359,30 +3188,20 @@ server <- function(input, output, session) {
   
   
   final_waterfall <- reactive({
-    req(chart_data_loaded())
-    req(chart_dataset_enabled("final_waterfall"))
-
-    data <- load_chart_dataset(
+    data <- load_enabled_chart_dataset(
       "final_waterfall",
       c("Exercise", "Country", "Name", "TR", "rel_period", "Scenario", "Items", "Amount")
-    ) %>%
-      dplyr::select(-any_of("DB")) %>%
-      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+    )
     
     return(data)
   })
   
   bank_exp_total <- reactive({
-    req(chart_data_loaded())
-    req(chart_dataset_enabled("bank_exp_total"))
-
-    data <- load_chart_dataset(
+    data <- load_enabled_chart_dataset(
       "bank_exp_total",
       c("TP", "ISO2", "Bank_ID", "Name", "Period", "Exercise", "Portfolio",
         "Common_Exposure", "Country", "Framework", "Amount")
     ) %>%
-      dplyr::select(-any_of("DB")) %>%
-      select_if(function(x) !(all(is.na(x)) | all(x == ""))) %>%
       distinct() %>%
       pivot_wider(names_from = Framework, values_from = Amount) %>%
       arrange(Bank_ID, ISO2, Period, Country, Common_Exposure) %>%
@@ -3404,48 +3223,28 @@ server <- function(input, output, session) {
   })
   
   sov_exp <- reactive({
-    req(chart_data_loaded())
-    req(chart_dataset_enabled("sov_exp"))
-
-    data <- load_chart_dataset(
+    data <- load_enabled_chart_dataset(
       "sov_exp",
       c("ISO2", "Bank_ID", "Name", "Period", "Country", "Maturity", "Amount")
-    ) %>%
-      dplyr::select(-any_of("DB")) %>%
-      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+    )
     
     return(data)
   })
   
   bank_nace <- reactive({
-    req(chart_data_loaded())
-    req(chart_dataset_enabled("bank_nace"))
-
-    data <- load_chart_dataset("bank_nace") %>%
-      dplyr::select(-any_of("DB")) %>%
-      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+    data <- load_enabled_chart_dataset("bank_nace")
     
     return(data)
   })
   
   tr_rwas <- reactive({
-    req(chart_data_loaded())
-    req(chart_dataset_enabled("tr_rwas"))
-
-    data <- load_chart_dataset("tr_rwas") %>%
-      dplyr::select(-any_of("DB")) %>%
-      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+    data <- load_enabled_chart_dataset("tr_rwas")
     
     return(data)
   })
   
   tr_assets <- reactive({
-    req(chart_data_loaded())
-    req(chart_dataset_enabled("tr_assets"))
-
-    data <- load_chart_dataset("tr_assets") %>%
-      dplyr::select(-any_of("DB")) %>%
-      select_if(function(x) !(all(is.na(x)) | all(x == "")))
+    data <- load_enabled_chart_dataset("tr_assets")
     
     return(data)
   })

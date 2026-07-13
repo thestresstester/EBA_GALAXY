@@ -1,0 +1,727 @@
+@import url('https://fonts.googleapis.com/css2?family=Luxurious+Script&display=swap');
+
+/* ==================== GLOBAL STYLES ==================== */
+html, body {
+    font-family: Helvetica, sans-serif;
+    padding-top: 80px;
+}
+
+/* ==================== MAIN TITLE ==================== */
+.main-title {
+  font-family: 'Luxurious Script', cursive;
+  width: 100%;
+  background-color: #FFFFFF;
+  border-bottom: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1030;
+}
+
+.main-title h1 {
+  margin: 0;
+  font-size: 55px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.transparence-color {
+  color: #BF9F66;
+}
+
+/* ==================== TABSET PANEL ==================== */
+#main-tabs {
+    display: flex !important;
+    width: 98% !important;
+    padding-bottom: 3px !important;
+    border: none !important;
+    box-shadow: none !important;
+    position: fixed !important;
+    top: 50px !important;
+    background-color: #FFFFFF !important;
+    overflow: visible !important;
+    z-index: 1029;
+}
+
+#main-tabs > li {
+    flex-grow: 1;
+    text-align: center;
+}
+
+#main-tabs > li > a {
+    color: #000000 !important;
+    font-size: 20px;
+    border: none !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    border-bottom: 0px solid transparent !important;
+    padding-top: 50px !important;
+    padding-bottom: 20px !important;
+}
+
+#main-tabs > li > a:hover,
+#main-tabs > li.active > a,
+#main-tabs > li.active > a:hover {
+    color: #000000 !important;
+    background-color: transparent !important;
+    border-bottom: 1px solid #BF9F66 !important;
+}
+
+/* ==================== TAB CONTENT ==================== */
+.tab-content,
+.tab-pane {
+  background-color: #FFFFFF;
+  border: none;
+}
+
+/* ==================== MARKDOWN CONTENT ==================== */
+.markdown-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    text-align: center;
+}
+
+.markdown-content p {
+    text-align: justify;
+}
+
+.markdown-content img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ==================== BUTTONS ==================== */
+.button-gif-container {
+  display: flex;
+  align-items: center;
+}
+
+.button-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.circle-button {
+  width: 50px;
+  height: 50px;
+  background-color: #FFFFFF;
+  border: 1px solid #BF9F66;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.circle-button.btn:hover,
+.circle-button.btn:focus {
+  background-color: #F7F4ED !important;
+  border-color: #BF9F66 !important;
+  box-shadow: none !important;
+}
+
+.circle-button .fa-download {
+  color: #BF9F66;
+  font-size: 2.0em;
+}
+
+/* ==================== BOXES & CONTAINERS ==================== */
+.full-width-box {
+  width: 100%;
+  padding: 10px;
+  border: transparent;
+  border-radius: 5px;
+  margin-bottom: 20px;
+}
+
+.scroll-box {
+  height: 400px;
+  overflow-y: scroll;
+  border: transparent;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.equal-height-row {
+  display: flex;
+}
+
+.equal-height-row > [class*="col-"] {
+  display: flex;
+  flex-direction: column;
+}
+
+.dataset-box {
+  border: 2px solid #BF9F66;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px;
+  flex-grow: 1;
+}
+
+.circle-box {
+  border: 2px solid #BF9F66;
+  border-radius: 50%;
+  width: 150px;
+  height: 150px;
+  margin: auto;
+  overflow: hidden;
+}
+
+.circle-gif {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.v-align-row {
+  display: flex;
+  align-items: stretch;
+}
+
+.loading-gif {
+  width: 30px;
+  height: 30px;
+  margin-left: 10px;
+}
+
+/* ==================== SELECTIZE INPUTS ==================== */
+.selectize-control.single .selectize-input.focus,
+.selectize-control.single .selectize-input.dropdown-active,
+.selectize-control.multi .selectize-input.focus,
+.selectize-control.multi .selectize-input.dropdown-active {
+  border-color: #BF9F66 !important;
+  box-shadow: 0 0 5px #BF9F66 !important;
+}
+
+.selectize-dropdown .active,
+.selectize-dropdown .option:hover,
+.selectize-dropdown .selected,
+.selectize-dropdown .selected:hover {
+  background-color: #BF9F66 !important;
+  color: #FFFFFF !important;
+}
+
+.selectize-control.multi .selectize-input > div.item,
+.selectize-control.multi .selectize-input > div.item.active {
+  background: #BF9F66 !important;
+  color: #FFFFFF !important;
+  border-color: #BF9F66 !important;
+}
+
+select:focus {
+  border-color: #BF9F66 !important;
+  box-shadow: 0 0 5px #BF9F66 !important;
+}
+
+/* ==================== STICKY COLUMNS ==================== 
+.sticky-table-container {
+  overflow-x: auto;
+  position: relative !important;
+}
+
+.sticky-col-1 { position: sticky; left: 0; z-index: 2; background-color: #FFFFFF; }
+.sticky-col-2 { position: sticky; left: 100px; z-index: 2; background-color: #FFFFFF; }
+.sticky-col-3 { position: sticky; left: 200px; z-index: 2; background-color: #FFFFFF; }
+.sticky-col-4 { position: sticky; left: 300px; z-index: 2; background-color: #FFFFFF; }
+.sticky-col-5 { position: sticky; left: 400px; z-index: 2; background-color: #FFFFFF; }
+.sticky-col-6 { position: sticky; left: 500px; z-index: 2; background-color: #FFFFFF; }
+
+/* ==================== DATATABLE STYLING ==================== */
+table.dataTable td,
+table.dataTable th {
+  text-align: center !important;
+}
+
+table.dataTable.no-footer {
+  border-bottom: none !important;
+}
+
+table.dataTable thead th {
+  border-bottom: 1px solid #BF9F66 !important;
+  border-top: none !important;
+  background-color: #FFFFFF !important;
+}
+
+
+table.dataTable tbody td {
+  border-top: none !important;
+  border-bottom: none !important;
+}
+
+table.dataTable tbody {
+  border: none !important;
+}
+
+table.dataTable tbody tr {
+  background-color: #FFFFFF !important;
+}
+
+
+table.dataTable tbody tr.selected > * {
+    box-shadow: inset 0 0 0 9999px #BF9F66 !important;
+    color: #FFFFFF !important;
+}
+
+table.dataTable thead > tr > th.sorting::before,
+table.dataTable thead > tr > th.sorting_asc::before,
+table.dataTable thead > tr > th.sorting::after,
+table.dataTable thead > tr > th.sorting_asc::after {
+  color: #FFFFFF !important;
+}
+
+.dataTables_filter input {
+  border: 1px solid #CCCCCC;
+  border-radius: 4px;
+  padding: 5px;
+}
+
+.dataTables_filter input:focus {
+  border-color: #BF9F66 !important;
+  box-shadow: 0 0 5px #BF9F66 !important;
+  outline: none;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    color: #FFFFFF !important;
+    border: 1px solid #BF9F66 !important;
+    background-color: #BF9F66 !important;
+    background: #BF9F66 !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,
+.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+  background: #FFFFFF !important;
+  border-color: #BF9F66 !important;
+  color: #FFFFFF !important;
+}
+
+/* ==================== DATATABLE LOADING SPINNER ==================== */
+/* Position spinner relative to the table wrapper */
+.dataTables_wrapper {
+  position: relative !important;
+}
+
+/* Completely hide and override default spinner */
+div.dataTables_processing {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 60px !important;
+  height: 60px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  z-index: 9999 !important;
+}
+
+/* Hide all text content */
+div.dataTables_processing * {
+  display: none !important;
+}
+
+/* Create custom bronze spinner that completely replaces default */
+div.dataTables_processing::after {
+  content: '' !important;
+  display: block !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 40px !important;
+  height: 40px !important;
+  border: 4px solid #F0E6D6 !important;
+  border-top-color: #BF9F66 !important;
+  border-radius: 50% !important;
+  animation: bronze-spinner 0.8s linear infinite !important;
+}
+
+@keyframes bronze-spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ==================== DATATABLE SCROLLABLE CONTAINER ==================== */
+/* Container that holds everything - NO scrolling on this */
+.dataTables_wrapper {
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 365px !important;
+  max-height: 365px !important;
+  overflow: hidden !important;
+}
+
+/* Top controls - fixed height, no scrolling */
+.dataTables_wrapper > .row:first-child {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  background-color: #FFFFFF !important;
+  z-index: 105 !important;
+  padding: 5px 0 !important;
+  margin: 0 0 5px 0 !important;
+  flex-wrap: nowrap !important;
+  gap: 10px !important;
+}
+
+.dataTables_wrapper .row:first-child .col-sm-6 {
+  flex: 0 1 auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+}
+
+.dataTables_wrapper .dataTables_filter {
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+
+.dataTables_wrapper .dataTables_filter label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  margin: 0 !important;
+  font-size: 14px !important;
+}
+
+.dataTables_wrapper .dataTables_filter input {
+  width: 150px !important;
+  padding: 2px 5px !important;
+}
+
+/* Scrollable table container - takes remaining space */
+.dataTables_scroll {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+}
+
+/* Sticky header - no scrolling */
+.dataTables_scrollHead {
+  flex: 0 0 auto !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
+  background-color: #FFFFFF !important;
+  overflow: hidden !important;
+}
+
+.dataTables_scrollHead table {
+  margin-bottom: 0 !important;
+}
+
+/* ONLY THIS SCROLLS - the table body */
+.dataTables_scrollBody {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+}
+
+.dataTables_scrollBody table {
+  margin-bottom: 0 !important;
+}
+
+/* Bottom controls - fixed height, no scrolling */
+.dataTables_wrapper > .row:last-child {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  background-color: #FFFFFF !important;
+  z-index: 105 !important;
+  padding: 5px 0 !important;
+  margin: 5px 0 0 0 !important;
+  flex-wrap: nowrap !important;
+  gap: 10px !important;
+}
+
+.dataTables_wrapper .row:last-child .col-sm-6 {
+  flex: 0 1 auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+}
+
+.dataTables_wrapper .dataTables_paginate {
+  text-align: right !important;
+  white-space: nowrap !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  padding: 2px 8px !important;
+  margin: 0 2px !important;
+  font-size: 14px !important;
+}
+
+.dataTables_wrapper .dataTables_length {
+  display: none !important;
+}
+
+.dataTables_wrapper .dataTables_info {
+  display: none !important;
+}
+
+.dataTables_wrapper.no-footer .dataTables_scrollBody {
+    border-bottom: 1px solid #BF9F66 !important;
+}
+
+/* ==================== DATATABLE HOVER EFFECT ==================== */
+table.dataTable tbody tr:hover {
+  background-color: #F5F5F5 !important;
+}
+
+table.dataTable tbody tr:hover > * {
+  background-color: #F5F5F5 !important;
+}
+
+/* Ensure selected rows maintain their color on hover */
+table.dataTable tbody tr.selected:hover > * {
+  box-shadow: inset 0 0 0 9999px #BF9F66 !important;
+  color: #FFFFFF !important;
+  background-color: transparent !important;
+}
+
+
+/* ==================== METADATA TABS ==================== */
+#metadata-tabs,
+#visualisation-tabs {
+    display: flex !important;
+    width: 100% !important;
+    padding-bottom: 3px !important;
+    border: none !important;
+    box-shadow: none !important;
+    background-color: #FFFFFF !important;
+    overflow: visible !important;
+}
+
+#metadata-tabs > li,
+#visualisation-tabs > li {
+    flex-grow: 1;
+    text-align: center;
+}
+
+#metadata-tabs > li > a,
+#visualisation-tabs > li > a {
+    color: #000000 !important;
+    font-size: 16px;
+    border: none !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    border-bottom: 0px solid transparent !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+}
+
+#metadata-tabs > li > a:hover,
+#metadata-tabs > li.active > a,
+#metadata-tabs > li.active > a:hover,
+#visualisation-tabs > li > a:hover,
+#visualisation-tabs > li.active > a,
+#visualisation-tabs > li.active > a:hover {
+    color: #000000 !important;
+    background-color: transparent !important;
+    border-bottom: 1px solid #BF9F66 !important;
+}
+
+/* Dictionaries subtabs */
+#dict-subtabs {
+    display: flex !important;
+    width: 100% !important;
+    padding-bottom: 3px !important;
+    border: none !important;
+    box-shadow: none !important;
+    background-color: #FFFFFF !important;
+    overflow: visible !important;
+}
+
+#dict-subtabs > li {
+    flex-grow: 1;
+    text-align: center;
+}
+
+#dict-subtabs > li > a {
+    color: #000000 !important;
+    font-size: 14px;
+    border: none !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    border-bottom: 0px solid transparent !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
+
+#dict-subtabs > li > a:hover,
+#dict-subtabs > li.active > a,
+#dict-subtabs > li.active > a:hover {
+    color: #000000 !important;
+    background-color: transparent !important;
+    border-bottom: 1px solid #BF9F66 !important;
+}
+
+/* ==================== METADATA TABLE SCROLL BOX ==================== */
+.metadata-scroll-box {
+  height: 550px !important;
+  overflow-y: scroll;
+  border: 2px solid #BF9F66 !important;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.dict-scroll-box {
+  height: 480px !important;
+  overflow-y: scroll;
+  border: 2px solid #BF9F66 !important;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+
+/* ==================== METADATA DOWNLOAD SECTION ==================== */
+.metadata-download-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 0px !important;
+  padding: 2px;
+  border: transparent !important;
+  border-radius: 5px;
+}
+
+.metadata-download-section p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.metadata-download-section .circle-button {
+  width: 40px;
+  height: 40px;
+}
+
+/* ==================== METADATA TABLE HEADER ==================== */
+.metadata-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px;
+  margin-bottom: 0px;
+}
+
+.metadata-table-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #000000;
+  flex: 1;
+}
+
+.metadata-table-header .circle-button {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+/* Reduce download button sizes in metadata tab */
+.metadata-download-section .circle-button .fa-download,
+.metadata-table-header .circle-button .fa-download {
+  font-size: 1.5em !important;
+}
+
+/* ==================== METADATA DATATABLE SCROLL HEIGHT ==================== */
+/* Override the default scroll height for metadata tables */
+.metadata-scroll-box .dataTables_wrapper {
+  height: 520px !important;
+  max-height: 520px !important;
+}
+
+.metadata-scroll-box .dataTables_scroll .dict-scroll-box {
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+.metadata-scroll-box .dataTables_scrollBody {
+  height: calc(550px - 100px) !important;
+  max-height: calc(550px - 100px) !important;
+}
+
+/* ==================== DICTIONARY DATATABLE SCROLL HEIGHT ==================== */
+.dict-scroll-box .dataTables_wrapper {
+  height: 450px !important;
+  max-height: 450px !important;
+}
+
+.dict-scroll-box .dataTables_scrollBody {
+  height: calc(450px - 100px) !important;
+  max-height: calc(450px - 100px) !important;
+}
+
+.vis-spinner-container {
+  position: sticky;
+  top: 20px;
+  height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 50px;
+  justify-content: center;
+}
+
+.vis-spinner-container .shiny-spinner-output-container {
+  border-color: #BF9F66 !important;
+}
+
+/* Spinner styling */
+.plot-container {
+  position: relative;
+}
+
+.spinner-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  z-index: 1000;
+}
+
+/* Center filter headers */
+.dataset-box h4 {
+  text-align: center !important;
+}
+
+/* Bold text for specific labels */
+.bold-label {
+  font-weight: bold;
+}
+
+/* Prevent network overflow */
+.vis-network {
+  overflow: hidden !important;
+}
+

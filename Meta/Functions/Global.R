@@ -49,8 +49,53 @@ dataset_sources <- list(
   )
 )
 
+chart_db_fallback_file <- "Meta/Original Data/chart_db.parquet"
+chart_split_dir <- "Meta/Original Data/Chart Data"
+
+chart_view_specs <- list(
+  tr_ratios = list(
+    view = "chart_tr_ratios_table",
+    file = file.path(chart_split_dir, "tr_ratios.parquet"),
+    db_key = "tr_ratios"
+  ),
+  final_waterfall = list(
+    view = "chart_final_waterfall_table",
+    file = file.path(chart_split_dir, "final_waterfall.parquet"),
+    db_key = "final_waterfall"
+  ),
+  bank_exp_total = list(
+    view = "chart_bank_exp_total_table",
+    file = file.path(chart_split_dir, "bank_exp_total.parquet"),
+    db_key = "bank_exp_total"
+  ),
+  sov_exp = list(
+    view = "chart_sov_exp_table",
+    file = file.path(chart_split_dir, "sov_exp.parquet"),
+    db_key = "sov_exp"
+  ),
+  bank_nace = list(
+    view = "chart_bank_nace_table",
+    file = file.path(chart_split_dir, "bank_nace.parquet"),
+    db_key = "bank_nace"
+  ),
+  tr_rwas = list(
+    view = "chart_tr_rwas_table",
+    file = file.path(chart_split_dir, "tr_rwas.parquet"),
+    db_key = "tr_rwas"
+  ),
+  tr_assets = list(
+    view = "chart_tr_assets_table",
+    file = file.path(chart_split_dir, "tr_assets.parquet"),
+    db_key = "tr_assets"
+  )
+)
+
 get_dataset_source <- function(dataset_type) {
   dataset_sources[[dataset_type]]
+}
+
+get_chart_view_spec <- function(chart_key) {
+  chart_view_specs[[chart_key]]
 }
 
 escape_sql_string <- function(value) {
@@ -159,11 +204,23 @@ dbExecute(con, "
   SELECT * FROM read_parquet('Meta/Original Data/Merged Datasets/EBA_Sovereign.parquet')
 ")
 
-dbExecute(con, "
-  CREATE VIEW chart_db_table AS 
-  SELECT * FROM read_parquet('Meta/Original Data/chart_db.parquet')
-")
+create_chart_view <- function(chart_key) {
+  chart_spec <- get_chart_view_spec(chart_key)
+  chart_file <- chart_spec$file
+  chart_source <- if (file.exists(chart_file)) {
+    sprintf("SELECT * FROM read_parquet('%s')", chart_file)
+  } else {
+    sprintf(
+      "SELECT * FROM read_parquet('%s') WHERE DB = '%s'",
+      chart_db_fallback_file,
+      chart_spec$db_key
+    )
+  }
 
+  dbExecute(con, sprintf("CREATE VIEW %s AS %s", chart_spec$view, chart_source))
+}
+
+invisible(lapply(names(chart_view_specs), create_chart_view))
 
 dbExecute(con, "
   CREATE VIEW rps_data_table AS 

@@ -19,7 +19,7 @@ install_if_missing <- function(packages) {
 # List of required packages
 required_packages <- c(
   "tidyverse", "readr", "readxl", "writexl", "data.table", "zoo", "httr",
-  "fst", "beepr", "wbstats", "openxlsx", "tsutils", "lubridate", "pracma",
+  "fst", "arrow", "beepr", "wbstats", "openxlsx", "tsutils", "lubridate", "pracma",
   "sandwich", "ggpubr", "grid", "countrycode", "ggraph", "igraph", "ggridges",
   "visNetwork", "plotly", "treemapify"
 )
@@ -2238,6 +2238,19 @@ plot_ly(
 #### Export whole final dataset
 
 chart_db = plyr::rbind.fill(tr_ratios, final_waterfall, tr_rwas, tr_assets, bank_exp_total, bank_nace, sov_exp)
+
+chart_output_dir <- "../Original Data/Chart Data"
+dir.create(chart_output_dir, recursive = TRUE, showWarnings = FALSE)
+
+arrow::write_parquet(tr_ratios %>% dplyr::select(-DB), file.path(chart_output_dir, "tr_ratios.parquet"), compression = "snappy")
+arrow::write_parquet(final_waterfall %>% dplyr::select(-DB), file.path(chart_output_dir, "final_waterfall.parquet"), compression = "snappy")
+arrow::write_parquet(tr_rwas %>% dplyr::select(-DB), file.path(chart_output_dir, "tr_rwas.parquet"), compression = "snappy")
+arrow::write_parquet(tr_assets %>% dplyr::select(-DB), file.path(chart_output_dir, "tr_assets.parquet"), compression = "snappy")
+arrow::write_parquet(bank_exp_total %>% dplyr::select(-DB), file.path(chart_output_dir, "bank_exp_total.parquet"), compression = "snappy")
+arrow::write_parquet(bank_nace %>% dplyr::select(-DB), file.path(chart_output_dir, "bank_nace.parquet"), compression = "snappy")
+arrow::write_parquet(sov_exp %>% dplyr::select(-DB), file.path(chart_output_dir, "sov_exp.parquet"), compression = "snappy")
+
+arrow::write_parquet(chart_db, "../Original Data/chart_db.parquet", compression = "snappy")
 
 write.fst(chart_db, "../Original Data/chart_db.fst", compress = 100)
 

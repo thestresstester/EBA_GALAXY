@@ -508,7 +508,8 @@ table.dataTable tbody tr.selected:hover > * {
 
 
 /* ==================== METADATA TABS ==================== */
-#metadata-tabs {
+#metadata-tabs,
+#visualisation-tabs {
     display: flex !important;
     width: 100% !important;
     padding-bottom: 3px !important;
@@ -518,12 +519,14 @@ table.dataTable tbody tr.selected:hover > * {
     overflow: visible !important;
 }
 
-#metadata-tabs > li {
+#metadata-tabs > li,
+#visualisation-tabs > li {
     flex-grow: 1;
     text-align: center;
 }
 
-#metadata-tabs > li > a {
+#metadata-tabs > li > a,
+#visualisation-tabs > li > a {
     color: #000000 !important;
     font-size: 16px;
     border: none !important;
@@ -536,7 +539,10 @@ table.dataTable tbody tr.selected:hover > * {
 
 #metadata-tabs > li > a:hover,
 #metadata-tabs > li.active > a,
-#metadata-tabs > li.active > a:hover {
+#metadata-tabs > li.active > a:hover,
+#visualisation-tabs > li > a:hover,
+#visualisation-tabs > li.active > a,
+#visualisation-tabs > li.active > a:hover {
     color: #000000 !important;
     background-color: transparent !important;
     border-bottom: 1px solid #BF9F66 !important;

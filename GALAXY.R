@@ -4135,6 +4135,15 @@ server <- function(input, output, session) {
       ) %>%
         distinct() %>%
         pivot_wider(names_from = Framework, values_from = Amount) %>%
+        {
+          if (!"TR" %in% names(.)) {
+            .$TR <- NA_real_
+          }
+          if (!"ST" %in% names(.)) {
+            .$ST <- NA_real_
+          }
+          .
+        } %>%
         arrange(Bank_ID, ISO2, Period, Country, Common_Exposure) %>%
         mutate(Amount = coalesce(TR, ST), Framework = "TR") %>%
         dplyr::select(-any_of(c("TR", "ST"))) %>%

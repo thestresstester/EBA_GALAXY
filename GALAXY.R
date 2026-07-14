@@ -1192,83 +1192,102 @@ server <- function(input, output, session) {
     if (count_dataset_rows(view_name, where_clauses) >= 500000) ".parquet" else ".csv"
   }
 
+  sql_values_to_r_vector <- function(value_string) {
+    if (!nzchar(value_string)) {
+      return(character(0))
+    }
+
+    matches <- gregexpr("'(?:''|[^'])*'", value_string, perl = TRUE)
+    values <- regmatches(value_string, matches)[[1]]
+
+    if (length(values) == 1 && identical(values[[1]], "")) {
+      return(character(0))
+    }
+
+    values <- substring(values, 2, nchar(values) - 1)
+    gsub("''", "'", values, fixed = TRUE)
+  }
+
+  make_r_vector_literal <- function(values) {
+    if (length(values) == 0) {
+      return("character(0)")
+    }
+
+    sprintf("c(%s)", paste(vapply(values, function(value) deparse(value), character(1)), collapse = ", "))
+  }
+
+  sql_clause_to_dplyr_filter <- function(clause) {
+    trimmed_clause <- trimws(clause)
+
+    if (startsWith(trimmed_clause, "(") && endsWith(trimmed_clause, ")") && grepl(" OR ", trimmed_clause, fixed = TRUE)) {
+      inner_clause <- substring(trimmed_clause, 2, nchar(trimmed_clause) - 1)
+      or_parts <- strsplit(inner_clause, " OR ", fixed = TRUE)[[1]]
+
+      if (length(or_parts) == 2) {
+        left_expr <- sql_clause_to_dplyr_filter(or_parts[[1]])
+        right_expr <- sql_clause_to_dplyr_filter(or_parts[[2]])
+        return(sprintf("(%s) | (%s)", left_expr, right_expr))
+      }
+    }
+
+    in_match <- regexec("^CAST\\((.+?) AS VARCHAR\\) IN \\((.*)\\)$", trimmed_clause, perl = TRUE)
+    in_parts <- regmatches(trimmed_clause, in_match)[[1]]
+    if (length(in_parts) == 3) {
+      column_name <- in_parts[[2]]
+      selected_values <- sql_values_to_r_vector(in_parts[[3]])
+      return(sprintf("as.character(%s) %%in%% %s", column_name, make_r_vector_literal(selected_values)))
+    }
+
+    total_match <- regexec(
+      "^\\((.+?) IS NULL OR lower\\(trim\\(CAST\\(.+? AS VARCHAR\\)\\)\\) IN \\((.*)\\)\\)$",
+      trimmed_clause,
+      perl = TRUE
+    )
+    total_parts <- regmatches(trimmed_clause, total_match)[[1]]
+    if (length(total_parts) == 3) {
+      column_name <- total_parts[[2]]
+      total_values <- tolower(sql_values_to_r_vector(total_parts[[3]]))
+      return(sprintf(
+        "is.na(%s) | tolower(trimws(as.character(%s))) %%in%% %s",
+        column_name,
+        column_name,
+        make_r_vector_literal(total_values)
+      ))
+    }
+
+    stop(sprintf("Unsupported filter clause for reproduction script: %s", clause))
+  }
+
   write_filtered_reproduction_script <- function(script_path, dataset_label, dataset_source_path, where_clauses, output_filename) {
+    dplyr_filters <- vapply(where_clauses, sql_clause_to_dplyr_filter, character(1))
+
     code_content <- c(
       paste0("# Reproduce filtered ", dataset_label, " extract locally"),
       "# ---------------------------------------------",
+      "# Place this script in the same folder as the full original parquet dataset before running it.",
       "",
       "if (!requireNamespace('arrow', quietly = TRUE)) install.packages('arrow')",
       "if (!requireNamespace('dplyr', quietly = TRUE)) install.packages('dplyr')",
-      "if (!requireNamespace('stringr', quietly = TRUE)) install.packages('stringr')",
       "if (!requireNamespace('readr', quietly = TRUE)) install.packages('readr')",
       "",
       "library(arrow)",
       "library(dplyr)",
-      "library(stringr)",
       "library(readr)",
       "",
-      paste0("path_to_full_dataset <- ", deparse(dataset_source_path)),
+      paste0("path_to_full_dataset <- ", deparse(basename(dataset_source_path))),
       paste0("output_filename <- ", deparse(output_filename)),
-      paste0("where_clauses <- ", deparse(as.list(where_clauses))),
-      "",
-      "parse_sql_values <- function(clause) {",
-      "  matches <- gregexpr(\"'(?:''|[^'])*'\", clause, perl = TRUE)",
-      "  values <- regmatches(clause, matches)[[1]]",
-      "  if (length(values) == 1 && values[1] == '') return(character(0))",
-      "  values <- substring(values, 2, nchar(values) - 1)",
-      "  gsub(\"''\", \"'\", values, fixed = TRUE)",
-      "}",
-      "",
-      "apply_single_clause <- function(data, clause) {",
-      "  clause <- trimws(clause)",
-      "",
-      "  if (str_starts(clause, '(') && str_ends(clause, ')') && str_detect(clause, ' OR ')) {",
-      "    inner_clause <- str_sub(clause, 2, -2)",
-      "    or_parts <- str_split(inner_clause, ' OR ', n = 2, simplify = TRUE)",
-      "    left_mask <- apply_single_clause(data, or_parts[1])",
-      "    right_mask <- apply_single_clause(data, or_parts[2])",
-      "    return(left_mask | right_mask)",
-      "  }",
-      "",
-      "  in_match <- str_match(clause, '^CAST\\((.+?) AS VARCHAR\\) IN \\((.*)\\)$')",
-      "  if (!all(is.na(in_match))) {",
-      "    column_name <- in_match[2]",
-      "    selected_values <- parse_sql_values(in_match[3])",
-      "    return(as.character(data[[column_name]]) %in% selected_values)",
-      "  }",
-      "",
-      "  total_match <- str_match(",
-      "    clause,",
-      "    '^\\((.+?) IS NULL OR lower\\(trim\\(CAST\\(.+? AS VARCHAR\\)\\)\\) IN \\((.*)\\)\\)$'",
-      "  )",
-      "  if (!all(is.na(total_match))) {",
-      "    column_name <- total_match[2]",
-      "    total_values <- tolower(parse_sql_values(total_match[3]))",
-      "    column_values <- data[[column_name]]",
-      "    normalized_values <- tolower(trimws(as.character(column_values)))",
-      "    return(is.na(column_values) | normalized_values %in% total_values)",
-      "  }",
-      "",
-      "  stop(sprintf('Unsupported filter clause in reproduction script: %s', clause))",
-      "}",
-      "",
-      "apply_where_clauses <- function(data, where_clauses) {",
-      "  if (length(where_clauses) == 0) {",
-      "    return(data)",
-      "  }",
-      "",
-      "  row_mask <- rep(TRUE, nrow(data))",
-      "  for (clause in where_clauses) {",
-      "    row_mask <- row_mask & apply_single_clause(data, clause)",
-      "  }",
-      "",
-      "  data[row_mask, , drop = FALSE]",
-      "}",
       "",
       "full_data <- arrow::read_parquet(path_to_full_dataset)",
-      "filtered_data <- apply_where_clauses(full_data, unlist(where_clauses, use.names = FALSE))",
+      "filtered_data <- full_data"
       "",
-      "print(head(filtered_data))",
+      if (length(dplyr_filters) > 0) {
+        vapply(dplyr_filters, function(filter_expr) {
+          paste0("filtered_data <- filtered_data %>% filter(", filter_expr, ")")
+        }, character(1))
+      } else {
+        character(0)
+      },
+      "",
       "print(sprintf('Rows returned: %s', nrow(filtered_data)))",
       "",
       "if (grepl('\\.parquet$', output_filename, ignore.case = TRUE)) {",

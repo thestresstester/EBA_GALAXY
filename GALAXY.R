@@ -1061,6 +1061,28 @@ server <- function(input, output, session) {
     )
   }
 
+  make_filter_clause_with_total <- function(column_name, selected_values) {
+    if (is.null(selected_values) || length(selected_values) == 0) {
+      return(character(0))
+    }
+
+    selected_values <- as.character(selected_values)
+    include_total <- "0" %in% selected_values
+    explicit_values <- setdiff(selected_values, "0")
+    value_clause <- if (length(explicit_values) > 0) make_cast_in_clause(column_name, explicit_values) else character(0)
+
+    if (!include_total) {
+      return(value_clause)
+    }
+
+    total_clause <- make_total_clause(column_name)
+    if (length(value_clause) > 0) {
+      paste0("(", value_clause, " OR ", total_clause, ")")
+    } else {
+      total_clause
+    }
+  }
+
   make_dynamic_filter_clauses <- function(filter_names, input_values) {
     clauses <- character()
 
@@ -1116,16 +1138,16 @@ server <- function(input, output, session) {
     where_clauses <- character()
 
     if (!has_all_selection(country_input, "All Countries")) {
-      where_clauses <- c(where_clauses, make_cast_in_clause("ISO2", country_input))
+      where_clauses <- c(where_clauses, make_filter_clause_with_total("ISO2", country_input))
     }
     if (!has_all_selection(bank_input, "All Banks")) {
-      where_clauses <- c(where_clauses, make_cast_in_clause("Bank_ID", bank_input))
+      where_clauses <- c(where_clauses, make_filter_clause_with_total("Bank_ID", bank_input))
     }
     if (!has_all_selection(exercise_input, "All Exercises")) {
-      where_clauses <- c(where_clauses, make_cast_in_clause("Exercise", exercise_input))
+      where_clauses <- c(where_clauses, make_filter_clause_with_total("Exercise", exercise_input))
     }
     if (!has_all_selection(item_input, "All Items")) {
-      where_clauses <- c(where_clauses, make_cast_in_clause("Common_Item", item_input))
+      where_clauses <- c(where_clauses, make_filter_clause_with_total("Common_Item", item_input))
     }
 
     c(where_clauses, make_dynamic_filter_clauses(filter_names, input_values))
@@ -1292,7 +1314,22 @@ server <- function(input, output, session) {
   }
 
   write_filtered_reproduction_script <- function(script_path, dataset_label, dataset_source_path, where_clauses, output_filename) {
-    dplyr_filters <- vapply(where_clauses, sql_clause_to_dplyr_filter, character(1))
+    script_filter_lines <- if (length(where_clauses) > 0) {
+      vapply(where_clauses, function(clause) {
+        translated_filter <- tryCatch(
+          sql_clause_to_dplyr_filter(clause),
+          error = function(...) NULL
+        )
+
+        if (is.null(translated_filter)) {
+          paste0("# TODO: manually translate this filter clause: ", clause)
+        } else {
+          paste0("filtered_data <- filtered_data %>% filter(", translated_filter, ")")
+        }
+      }, character(1))
+    } else {
+      character(0)
+    }
 
     code_content <- c(
       paste0("# Reproduce filtered ", dataset_label, " extract locally"),
@@ -1313,10 +1350,8 @@ server <- function(input, output, session) {
       "full_data <- arrow::read_parquet(path_to_full_dataset)",
       "filtered_data <- full_data",
       "",
-      if (length(dplyr_filters) > 0) {
-        vapply(dplyr_filters, function(filter_expr) {
-          paste0("filtered_data <- filtered_data %>% filter(", filter_expr, ")")
-        }, character(1))
+      if (length(script_filter_lines) > 0) {
+        script_filter_lines
       } else {
         character(0)
       },
@@ -1357,7 +1392,10 @@ server <- function(input, output, session) {
       output_filename = export_filename
     )
 
-    zip::zip(zipfile = zip_file, files = c(export_filename, script_filename), root = temp_dir)
+    if (file.exists(zip_file)) {
+      unlink(zip_file, force = TRUE)
+    }
+    zip::zipr(zipfile = zip_file, files = c(export_filename, script_filename), root = temp_dir, include_directories = FALSE)
   }
 
   write_filtered_bds_reproduction_script <- function(script_path, selected_countries, selected_banks, output_filename) {
@@ -1418,7 +1456,10 @@ server <- function(input, output, session) {
     write.csv(filtered_data, export_file_path, row.names = FALSE)
     write_filtered_bds_reproduction_script(script_file_path, selected_countries, selected_banks, export_filename)
 
-    zip::zip(zipfile = zip_file, files = c(export_filename, script_filename), root = temp_dir)
+    if (file.exists(zip_file)) {
+      unlink(zip_file, force = TRUE)
+    }
+    zip::zipr(zipfile = zip_file, files = c(export_filename, script_filename), root = temp_dir, include_directories = FALSE)
   }
 
   filtered_st_download_ready <- reactive({
@@ -4287,7 +4328,7 @@ server <- function(input, output, session) {
               Country_Label = as.character(Value_Country_Final)
             ) %>%
             distinct(),
-          by = "Country", relationship = "many-to-many"
+          by = "Country"
         ) %>%
         mutate(Country = coalesce(Country_Label, Country)) %>%
         dplyr::select(-Country_Label)

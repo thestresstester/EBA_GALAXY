@@ -4148,7 +4148,19 @@ server <- function(input, output, session) {
         mutate(Amount = coalesce(TR, ST), Framework = "TR") %>%
         dplyr::select(-any_of(c("TR", "ST"))) %>%
         distinct() %>%
-        filter(Country != 0)
+        filter(Country != 0) %>%
+        mutate(Country = as.character(Country)) %>%
+        left_join(
+          metadata_countries %>%
+            transmute(
+              Country = as.character(Label_Country_Final),
+              Country_Label = as.character(Value_Country_Final)
+            ) %>%
+            distinct(),
+          by = "Country"
+        ) %>%
+        mutate(Country = coalesce(Country_Label, Country)) %>%
+        dplyr::select(-Country_Label)
 
       if (selection$portfolio == "Total") {
         name_lookup <- data %>% distinct(ISO2, Bank_ID, Name)

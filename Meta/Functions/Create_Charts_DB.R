@@ -19,7 +19,7 @@ install_if_missing <- function(packages) {
 # List of required packages
 required_packages <- c(
   "tidyverse", "readr", "readxl", "writexl", "data.table", "zoo", "httr",
-  "fst", "arrow", "beepr", "wbstats", "openxlsx", "tsutils", "lubridate", "pracma",
+  "arrow", "beepr", "wbstats", "openxlsx", "tsutils", "lubridate", "pracma",
   "sandwich", "ggpubr", "grid", "countrycode", "ggraph", "igraph", "ggridges",
   "visNetwork", "plotly", "treemapify"
 )
@@ -109,7 +109,7 @@ numeric_cols <- c(
 ## 1. Import relevant datasets (once and for all)
 
 ## PLC
-dt_pnl <- read.fst("../Original Data/Merged Datasets/EBA_PLC.fst") %>%
+dt_pnl <- arrow::read_parquet("../Original Data/Merged Datasets/EBA_PLC.parquet") %>%
   dplyr::select(-LEI) %>%
   distinct() %>%
   mutate(across(intersect(categorical_cols, colnames(.)), ~ as.character(.))) %>%
@@ -118,7 +118,7 @@ dt_pnl <- read.fst("../Original Data/Merged Datasets/EBA_PLC.fst") %>%
   distinct()
 
 ### Exposures
-dt_exp <- read.fst("../Original Data/Merged Datasets/EBA_Exposure.fst") %>%
+dt_exp <- arrow::read_parquet("../Original Data/Merged Datasets/EBA_Exposure.parquet") %>%
   dplyr::select(-LEI) %>%
   distinct() %>%
   mutate(across(intersect(categorical_cols, colnames(.)), ~ as.character(.))) %>%
@@ -127,7 +127,7 @@ dt_exp <- read.fst("../Original Data/Merged Datasets/EBA_Exposure.fst") %>%
   distinct()
 
 ### Sovereign
-dt_sov <- read.fst("../Original Data/Merged Datasets/EBA_Sovereign.fst") %>%
+dt_sov <- arrow::read_parquet("../Original Data/Merged Datasets/EBA_Sovereign.parquet") %>%
   dplyr::select(-LEI) %>%
   distinct() %>%
   mutate(across(intersect(categorical_cols, colnames(.)), ~ as.character(.))) %>%
@@ -2252,10 +2252,8 @@ arrow::write_parquet(sov_exp_export %>% dplyr::select(-DB), file.path(chart_outp
 
 arrow::write_parquet(chart_db, "../Original Data/chart_db.parquet", compression = "snappy")
 
-write.fst(chart_db, "../Original Data/chart_db.fst", compress = 100)
-
 # ## Code to Import datasets (once and for all)
-# chart_db = read.fst("../Original Data/chart_db.fst")
+# chart_db <- arrow::read_parquet("../Original Data/chart_db.parquet")
 # 
 # tr_ratios = chart_db %>%
 #   filter(DB == "tr_ratios") %>% 

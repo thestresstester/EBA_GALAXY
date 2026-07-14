@@ -263,10 +263,10 @@ loadRPSdata <- function(limit = preview_row_limit, where_clauses = character()) 
 ### Metadata Items
 
 ## Bank Structure
-bk_struct = read.fst("Meta/Original Data/Structure/bank_structure.fst") %>% 
+bk_struct = arrow::read_parquet("Meta/Original Data/Structure/bank_structure.parquet") %>% 
   mutate(Exercise = ifelse(Exercise == 20201, "2020 Summer", 
                            ifelse(Exercise == 20202, "2020 Autumn", Exercise)))
-itm_struct = read.fst("Meta/Original Data/Structure/item_structure.fst") 
+itm_struct = arrow::read_parquet("Meta/Original Data/Structure/item_structure.parquet") 
 
 ### Item tables
 itm_tot = read_xlsx("Meta/Total_Metadata_App.xlsx", sheet = "Final_Matches")
@@ -346,7 +346,6 @@ tr_meta = read_xlsx("Meta/Metadata_DB.xlsx", sheet = "TE")
 ssm_meta = read_xlsx("Meta/Metadata_DB.xlsx", sheet = "SSM")
 
 
-
 ### Country Structure
 countries_tot_st = bk_struct %>% 
   filter(DB == "ST") %>% 
@@ -354,7 +353,7 @@ countries_tot_st = bk_struct %>%
   na.omit() %>% 
   distinct()
 countries_st = countries_tot_st$ISO2
-names(countries_st) = countries_tot_st$Country
+names(countries_st) = countries_tot_st$Country_Label
 
 countries_tot_ssm = bk_struct %>% 
   filter(DB == "SSM") %>% 
@@ -362,7 +361,7 @@ countries_tot_ssm = bk_struct %>%
   na.omit() %>% 
   distinct()
 countries_ssm = countries_tot_ssm$ISO2
-names(countries_ssm) = countries_tot_ssm$Country
+names(countries_ssm) = countries_tot_ssm$Country_Label
 
 countries_tot_tr = bk_struct %>% 
   filter(DB == "TR") %>% 
@@ -370,7 +369,7 @@ countries_tot_tr = bk_struct %>%
   na.omit() %>% 
   distinct()
 countries_tr = countries_tot_tr$ISO2
-names(countries_tr) = countries_tot_tr$Country
+names(countries_tr) = countries_tot_tr$Country_Label
 
 countries_tot_plc = bk_struct %>% 
   filter(DB == "PLC") %>% 
@@ -378,7 +377,7 @@ countries_tot_plc = bk_struct %>%
   na.omit() %>% 
   distinct()
 countries_plc = countries_tot_plc$ISO2
-names(countries_plc) = countries_tot_plc$Country
+names(countries_plc) = countries_tot_plc$Country_Label
 
 countries_tot_mkt = bk_struct %>% 
   filter(DB == "MKT") %>% 
@@ -386,7 +385,7 @@ countries_tot_mkt = bk_struct %>%
   na.omit() %>% 
   distinct()
 countries_mkt = countries_tot_mkt$ISO2
-names(countries_mkt) = countries_tot_mkt$Country
+names(countries_mkt) = countries_tot_mkt$Country_Label
 
 countries_tot_sov = bk_struct %>% 
   filter(DB == "SOV") %>% 
@@ -394,7 +393,7 @@ countries_tot_sov = bk_struct %>%
   na.omit() %>% 
   distinct()
 countries_sov = countries_tot_sov$ISO2
-names(countries_sov) = countries_tot_sov$Country
+names(countries_sov) = countries_tot_sov$Country_Label
 
 countries_tot_exp = bk_struct %>% 
   filter(DB == "EXP") %>% 
@@ -402,7 +401,7 @@ countries_tot_exp = bk_struct %>%
   na.omit() %>% 
   distinct()
 countries_exp = countries_tot_exp$ISO2
-names(countries_exp) = countries_tot_exp$Country
+names(countries_exp) = countries_tot_exp$Country_Label
 
 ### Bank Structure
 banks_orig_st = bk_struct %>% 
@@ -787,38 +786,38 @@ other_banks <- read_xlsx("Meta/Total_Metadata_App.xlsx", sheet = "Metadata", ran
 # final_struct = left_join(final_struct, itm_struct, by = "Common_Item", relationship = "many-to-many")
 # 
 # ## Bank structure
-# st_structure = fst::read_fst("Meta/Original Data/Total_Stress_Tests.fst") %>%
+# st_structure = arrow::read_parquet("Meta/Original Data/Total_Stress_Tests.parquet") %>%
 #   dplyr::select(Bank_ID, Common_Item, ISO2, Exercise, Scenario, Exposure, Country, Maturity, Status, Portfolio,
 #                 Perf_Status, IFRS9_Stages, Perf_Forborne) %>%
 #   dplyr::select(where(~!all(is.na(.x)))) %>%
 #   distinct()
-# ssm_structure = fst::read_fst("Meta/Original Data/Total_SSM.fst") %>%
+# ssm_structure = arrow::read_parquet("Meta/Original Data/Total_SSM.parquet") %>%
 #   dplyr::select(Bank_ID, Common_Item, ISO2, Exercise, Scenario) %>%
 #   dplyr::select(where(~!all(is.na(.x)))) %>%
 #   distinct()
-# tr_structure = fst::read_fst("Meta/Original Data/Total_Transparency.fst") %>%
+# tr_structure = arrow::read_parquet("Meta/Original Data/Total_Transparency.parquet") %>%
 #   dplyr::select(Bank_ID, Common_Item, ISO2, Exercise, Exposure, Country, Maturity, Status, Portfolio,
 #                 MKT_Risk, MKT_ModProd, Perf_Status, Assets_FV, Assets_Stages, Accounting_Portfolio,
 #                 NACE_Codes, Financial_Instruments, Perf_Forborne) %>%
 #   dplyr::select(where(~!all(is.na(.x)))) %>%
 #   distinct()
-# plc_structure = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_PLC.fst") %>%
+# plc_structure = arrow::read_parquet("Meta/Original Data/Merged Datasets/EBA_PLC.parquet") %>%
 #   dplyr::select(Bank_ID, Common_Item, ISO2, Exercise, Scenario, Exposure, Country, Maturity, Status, Portfolio,
 #                 Assets_FV, Assets_Stages, Financial_Instruments, Common_Exposure) %>%
 #   dplyr::select(where(~!all(is.na(.x)))) %>%
 #   distinct()
-# market_structure = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_Market.fst") %>%
+# market_structure = arrow::read_parquet("Meta/Original Data/Merged Datasets/EBA_Market.parquet") %>%
 #   dplyr::select(Bank_ID, Common_Item, ISO2, Exercise, Exposure, Country, Maturity, Status, Portfolio,
 #                 MKT_Risk, MKT_ModProd, Common_Exposure) %>%
 #   dplyr::select(where(~!all(is.na(.x)))) %>%
 #   distinct()
-# sovereign_structure = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_Sovereign.fst") %>%
+# sovereign_structure = arrow::read_parquet("Meta/Original Data/Merged Datasets/EBA_Sovereign.parquet") %>%
 #   dplyr::select(Bank_ID, Common_Item, ISO2, Exercise, Scenario, Exposure, Country, Maturity, Status, Portfolio,
 #                 Accounting_Portfolio, Common_Exposure) %>%
 #   dplyr::select(where(~!all(is.na(.x)))) %>%
 #   distinct()
 # 
-# exposure_structure = fst::read_fst("Meta/Original Data/Merged Datasets/EBA_Exposure.fst") %>%
+# exposure_structure = arrow::read_parquet("Meta/Original Data/Merged Datasets/EBA_Exposure.parquet") %>%
 #   dplyr::select(Bank_ID, Common_Item, ISO2, Exercise, Exposure, Country, Maturity, Status, Portfolio,
 #                 Perf_Status, NACE_Codes, Perf_Forborne, IFRS9_Stages) %>%
 #   dplyr::select(where(~!all(is.na(.x)))) %>%
@@ -859,7 +858,7 @@ other_banks <- read_xlsx("Meta/Total_Metadata_App.xlsx", sheet = "Metadata", ran
 # names = read_xlsx("Meta/Metadata_DB.xlsx", sheet = "Dictionary")
 # 
 # bk_struct = left_join(bk_struct, names, by = c("Bank_ID", "ISO2"))
-# write.fst(bk_struct, "bank_structure.fst", compress = 100)
+# arrow::write_parquet(bk_struct, "bank_structure.parquet", compression = "snappy")
 # 
 # ## Items and the reste
 # st_structure_bk = st_structure %>%
@@ -893,7 +892,7 @@ other_banks <- read_xlsx("Meta/Total_Metadata_App.xlsx", sheet = "Metadata", ran
 # bk_struct = data.table::rbindlist(list(st_structure_bk, ssm_structure_bk, tr_structure_bk,
 #                   plc_structure_bk, market_structure_bk, sovereign_structure_bk, exposure_structure_bk), fill = T)
 # 
-# write.fst(bk_struct, "item_structure.fst", compress = 100)
+# arrow::write_parquet(itm_struct, "item_structure.parquet", compression = "snappy")
 
 ### Utils for visualisation 
 scenarnames <- c(0, 1, 11, 2, 3, 4)
@@ -912,7 +911,7 @@ exposures_names <- read_xlsx("Meta/Metadata_DB.xlsx", sheet = "Common_Exposure")
 labels <- read_xlsx("Meta/Metadata_DB.xlsx", sheet = "Labels")
 
 # Load data
-# chart_db <- read.fst("Meta/Original Data/chart_db.fst")
+# chart_db <- arrow::read_parquet("Meta/Original Data/chart_db.parquet")
 
 # Helper function to convert YYYYMM to YYYY QX
 convert_to_quarter <- function(period) {

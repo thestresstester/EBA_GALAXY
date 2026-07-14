@@ -4215,13 +4215,14 @@ server <- function(input, output, session) {
                    "Sweden", "Other")
 
     size_data <- data %>%
+      mutate(Country = as.character(Country)) %>%
       select(Country, Share_all) %>%
       group_by(Country) %>%
       summarise(Share_all = sum(Share_all, na.rm = TRUE), .groups = "drop")
 
-    structure <- unique(c(data$Name, as.character(data$Country)))
+    structure <- unique(c(as.character(data$Name), as.character(data$Country)))
     size <- size_data %>%
-      right_join(data.frame(Country = structure), by = "Country")
+      right_join(data.frame(Country = as.character(structure)), by = "Country")
 
     nodes <- size %>%
       mutate(id = Country) %>%
